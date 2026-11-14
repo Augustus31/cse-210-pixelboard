@@ -1,0 +1,39 @@
+name: CI
+
+# Run on every pull request and  every push to main
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+        with:
+          # The full history is needed to list the pull request's commits
+          fetch-depth: 0
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check commit messages and PR title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          { echo "$PR_TITLE"; git log --no-merges --format=%s "$BASE..$HEAD"; } \
+            | node .github/scripts/check-messages.js
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run the linter
+        run: npm run lint

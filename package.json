@@ -1,0 +1,21 @@
+{
+  "name": "cse-210-pixelboard",
+  "version": "0.1.0",
+  "description": "CSE 210 Pixel Board",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Augustus31/cse-210-pixelboard.git"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2"
+  }
+}
