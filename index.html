@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f5f0" />
+    <meta name="description" content="A simple pixel drawing canvas in three sizes. Pick a color and make something small." />
+    <title>Pixelboard — a little space to create</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="site-header"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">▦</span> pixelboard<span class="beta">PLAYGROUND</span></a><span class="header-note">Small pixels. Endless possibilities.</span></header>
+    <main>
+      <div class="intro"><div><p class="eyebrow">A LITTLE SPACE TO CREATE</p><h1>Make something pixel-perfect.</h1><p>Pick a color, grab a tool, and see where your imagination goes.</p></div><span class="size-badge"><span></span> <span id="size-label">64 × 64 canvas</span></span></div>
+      <div class="workspace">
+        <section class="drawing-panel" aria-label="Drawing workspace">
+          <div class="canvas-toolbar"><div class="tools" role="group" aria-label="Drawing tools"><button id="pencil" class="active" aria-pressed="true" title="Pencil (P)">✎ <span>Pencil</span></button><button id="eraser" aria-pressed="false" title="Eraser (E)">▱ <span>Eraser</span></button></div><label class="grid-toggle"><input id="grid" type="checkbox" checked /> Show grid</label></div>
+          <div class="canvas-stage"><div class="canvas-wrap"><canvas id="drawing" width="64" height="64" tabindex="0" aria-label="64 by 64 drawing canvas. Drag to draw, or use arrow keys to move and Space to paint."></canvas><div id="grid-overlay" aria-hidden="true"></div><div id="cursor" hidden aria-hidden="true"></div></div></div>
+          <div class="canvas-footer"><span id="position">64 × 64 pixels</span><span>Draw a little. Dream a lot. <span aria-hidden="true">✧</span></span></div>
+        </section>
+        <aside>
+          <section class="card"><div class="section-heading"><h2>Colors</h2><span id="color-count"></span></div><p class="card-description">Find your favorite shade.</p><div id="palette" aria-label="Color palette"></div><div class="custom-color"><label for="custom-color">Custom color</label><div class="color-input"><input type="color" id="custom-color" value="#6d5ce7" aria-label="Choose a custom color" /><span id="color-value">#6D5CE7</span></div></div></section>
+          <section class="card actions"><h2>Your canvas</h2><label class="size-control" for="canvas-size">Canvas size<select id="canvas-size"><option value="64">64 × 64</option><option value="40">40 × 40</option><option value="25">25 × 25</option></select></label><p class="size-help">Each size keeps its own drawing.</p><div class="history-buttons"><button id="undo" disabled>↶ Undo</button><button id="redo" disabled>↷ Redo</button></div><button id="download" class="primary">↓ <span>Download PNG</span></button><button id="clear" class="clear">Clear canvas</button></section>
+          <p class="tip"><span aria-hidden="true">✦</span> A blank canvas is a great beginning.<br />Your next little masterpiece starts here.</p>
+        </aside>
+      </div>
+      <footer class="page-footer"><span id="save-status" role="status">Your drawing stays in this browser.</span><span>Made for the joy of creating.</span></footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
