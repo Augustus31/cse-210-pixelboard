@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CSE 210 PixelArt</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; padding: 0 1rem; }
+    input, button { font: inherit; padding: 0.5rem 0.75rem; }
+    #error { color: #c92a2a; min-height: 1.4em; }
+    code { word-break: break-all; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "@atproto/oauth-client-browser": "https://esm.sh/@atproto/oauth-client-browser@0.4.9"
+    }
+  }
+  </script>
+</head>
+<body>
+  <h1>CSE 210 PixelArt</h1>
+  <p id="state">Checking login…</p>
+
+  <form id="login" hidden>
+    <input id="handle" placeholder="you.bsky.social" autocapitalize="none" spellcheck="false" required>
+    <button>Log in</button>
+  </form>
+  <button id="logout" hidden>Log out</button>
+  <p id="error" role="status"></p>
+
+  <script type="module">
+    import { initAuth, signIn, signOut, authFetch } from './auth.js';
+
+    const $ = (id) => document.getElementById(id);
+
+    function showSignedOut(message = 'Not logged in.') {
+      $('state').textContent = message;
+      $('login').hidden = false;
+      $('logout').hidden = true;
+    }
+
+    async function showSignedIn(did) {
+      $('login').hidden = true;
+      $('logout').hidden = false;
+      $('state').innerHTML = 'Logged in as <code></code>';
+      $('state').querySelector('code').textContent = did;
+      // One authenticated call, to prove the session works: look up the handle.
+      const res = await authFetch('/xrpc/com.atproto.repo.describeRepo?repo=' + encodeURIComponent(did));
+      if (res.ok) $('state').querySelector('code').textContent = '@' + (await res.json()).handle;
+    }
+
+    $('login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('error').textContent = 'Opening your sign-in page…';
+      try {
+        await signIn($('handle').value);
+      } catch (err) {
+        $('error').textContent = 'Could not start login: ' + err.message;
+      }
+    });
+
+    $('logout').addEventListener('click', async () => {
+      await signOut().catch(() => {});
+      showSignedOut('Logged out.');
+    });
+
+    window.addEventListener('auth-ended', () => showSignedOut('Your session ended.'));
+
+    try {
+      const user = await initAuth();
+      if (user) await showSignedIn(user.did);
+      else showSignedOut();
+    } catch (err) {
+      showSignedOut();
+      $('error').textContent = 'Login failed: ' + err.message;
+    }
+  </script>
+</body>
+</html>
