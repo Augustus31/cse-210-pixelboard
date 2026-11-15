@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linePixels } from './pixels.js';
+import { linePixels } from '../src/pixels.js';
 
 test('fast pointer movement paints every horizontal pixel', () => {
   assert.deepEqual(linePixels([0, 0], [4, 0]), [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]]);
