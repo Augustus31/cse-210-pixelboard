@@ -5,6 +5,7 @@ import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
 import { createColorPicker } from './colorPicker.js';
 import { blendHex } from './color.js';
 import { loadSectionState, saveSectionState } from './colorSections.js';
+import { createRecentColorsRow } from './recentColorsRow.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
@@ -58,13 +59,15 @@ function updateHistory() {
   $('redo').disabled = redoStack.length === 0;
 }
 // One drag is one undo step. Cap history to avoid unbounded memory growth.
+// Returns true when the drawing changed, so callers can tell if the stroke did anything.
 function commit(before) {
-  if (!before || before.every((color, index) => color === pixels[index])) return;
+  if (!before || before.every((color, index) => color === pixels[index])) return false;
   undoStack.push(before);
   if (undoStack.length > 100) undoStack.shift();
   redoStack.length = 0;
   updateHistory();
   save();
+  return true;
 }
 function selectTool(next) {
   tool = next;
@@ -128,6 +131,12 @@ function connectColorSections() {
   });
 }
 connectColorSections();
+// A recent color restores both the color and its alpha.
+const recentColorsRow = createRecentColorsRow({ storage: browserStorage(), onPick: (color, alpha) => selectColor(color, alpha) });
+// Only pencil strokes that changed at least one cell count as "used". Moving the picker or erasing does not.
+function rememberStrokeColor(strokeChangedDrawing) {
+  if (strokeChangedDrawing && tool === 'pencil') recentColorsRow.remember(selectedColor, selectedAlpha);
+}
 // A click on the active tool button while its panel is open closes the panel; any other click opens it.
 function toggleBrushPanel(toolName) {
   if (tool === toolName && brushPanel.openTool() === toolName) {
@@ -179,7 +188,7 @@ function finishStroke() {
   if (activePointer === null) return;
   activePointer = null;
   lastPoint = null;
-  commit(strokeBefore);
+  rememberStrokeColor(commit(strokeBefore));
   strokeBefore = null;
 }
 canvas.addEventListener('pointerdown', (event) => {
@@ -249,7 +258,8 @@ canvas.addEventListener('keydown', (event) => {
       pickColor(keyboardPoint);
     } else {
       const before = pixels.slice();
-      paint(keyboardPoint, keyboardPoint, before); commit(before);
+      paint(keyboardPoint, keyboardPoint, before);
+      rememberStrokeColor(commit(before));
     }
   } else return;
   $('cursor').hidden = false;
