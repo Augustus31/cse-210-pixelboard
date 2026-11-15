@@ -6,6 +6,7 @@ import { createColorPicker } from './colorPicker.js';
 import { blendHex } from './color.js';
 import { loadSectionState, saveSectionState } from './colorSections.js';
 import { createRecentColorsRow } from './recentColorsRow.js';
+import { createDraftsColumn } from './draftsColumn.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
@@ -299,9 +300,7 @@ function updateCanvasSize() {
   updateHistory();
   render();
 }
-$('canvas-size').addEventListener('change', (event) => {
-  const nextSize = Number(event.target.value);
-  if (!SIZES.includes(nextSize) || nextSize === size) return;
+function switchCanvasSize(nextSize) {
   finishStroke();
   drawings[size] = { pixels, undoStack, redoStack };
   size = nextSize;
@@ -309,6 +308,27 @@ $('canvas-size').addEventListener('change', (event) => {
   ({ pixels, undoStack, redoStack } = drawing);
   updateCanvasSize();
   save();
+}
+$('canvas-size').addEventListener('change', (event) => {
+  const nextSize = Number(event.target.value);
+  if (!SIZES.includes(nextSize) || nextSize === size) return;
+  switchCanvasSize(nextSize);
+});
+
+// Loading a draft changes to the draft's size first, then replaces that drawing as one undo step.
+// commit() also runs the normal auto-save, so the loaded drawing is kept after a reload.
+function applyDraft(draft) {
+  finishStroke();
+  if (draft.size !== size) switchCanvasSize(draft.size);
+  const before = pixels.slice();
+  pixels = draft.pixels.slice();
+  render();
+  commit(before);
+}
+createDraftsColumn({
+  getCanvas: () => ({ size, pixels: pixels.slice() }),
+  applyDraft,
+  showStatus: (message) => { $('save-status').textContent = message; },
 });
 
 // Accept the original 64 × 64 save format as well as the new resolution-specific drawings.

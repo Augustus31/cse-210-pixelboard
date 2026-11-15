@@ -21,5 +21,19 @@ canvas.picking{cursor:copy}
 .channel-list{display:grid;gap:6px}.channel-row{display:grid;grid-template-columns:14px minmax(0,1fr) 48px;align-items:center;gap:8px}.channel-row label,.hex-row label{font-size:11px;color:#8c8596;font-weight:600}.channel-row input[type=range]{width:100%;accent-color:#8b78cd}.channel-row input[type=number],.hex-row input{padding:4px 5px;border:1px solid #e6e2eb;border-radius:6px;font-size:11px;color:#5f5a6b;width:100%}.hex-row{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:8px;margin-top:10px}.hex-row input{font-family:ui-monospace,monospace}
 #palette{margin-top:2px}
 
+/* Drafts column on the left of the canvas. These rules come after the teammate's media queries, so they repeat the breakpoints. */
+.workspace{grid-template-columns:150px minmax(0,1fr) 270px}.drafts-column{display:grid;gap:12px;padding:16px}.drafts-column .primary{padding:10px 8px}
+.draft-list{list-style:none;margin:0;padding:2px;display:grid;gap:10px;max-height:min(70vh,640px);overflow-y:auto}.draft-list:empty{display:none}
+.draft-item{width:100%;display:grid;gap:3px;padding:6px;text-align:left;border:2px solid #e7e5ee;border-radius:8px;background:white;color:#5f5a6b}.draft-item:hover:enabled{background:#f8f6fd}.draft-item[aria-pressed=true]{border-color:#8670c9;background:#f6f3fd}
+/* Thumbnails are canvases too: undo the drawing-canvas rules (crosshair, no touch scroll) so the list can scroll on phones. */
+.draft-thumb{width:100%;height:auto;aspect-ratio:1;image-rendering:pixelated;cursor:inherit;touch-action:auto;border:1px solid #eeece7;border-radius:3px}.draft-size{font-size:11px;font-weight:600}.draft-item time{font-size:10px;color:#a19aa8}
+.drafts-empty{font-size:11px;line-height:1.5;color:#a19aa8;margin:0}.drafts-empty[hidden]{display:none}
+/* The canvas column is narrower now, so the tool bar wraps instead of pushing the page wider. */
+.canvas-toolbar{flex-wrap:wrap;gap:8px}.tools{flex-wrap:wrap}
+.draft-dialog{border:1px solid #e4e2dc;border-radius:12px;padding:22px;max-width:min(92vw,400px);color:#292a35;box-shadow:0 12px 40px #3d354040}.draft-dialog::backdrop{background:#29243a59}.draft-dialog p{margin:0 0 18px;font-size:14px;line-height:1.5}.dialog-buttons{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+@media(max-width:800px){.workspace{grid-template-columns:120px minmax(0,1fr) 220px}.drafts-column{padding:12px}}
+/* Phones: one column. The canvas comes first, then the drafts as a horizontal row, then the side panel. */
+@media(max-width:600px){.workspace{grid-template-columns:minmax(0,1fr)}.drawing-panel{order:-1}aside{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.draft-list{display:flex;overflow-x:auto;overflow-y:hidden;max-height:none;padding-bottom:6px}.draft-list li{flex:0 0 96px}}
+
 /* Resolution controls stay available on mobile, alongside the canvas actions. */
 .size-control{display:grid;gap:8px;font-size:11px;color:#8c8596;margin-top:6px}.size-control select{width:100%;font:inherit;font-size:12px;color:#777382;background:white;border:1px solid #e6e2eb;border-radius:6px;padding:9px}.size-help{font-size:10px;line-height:1.5;color:#99939f;margin:0}select:focus-visible{outline:3px solid #9b8af5;outline-offset:3px}
