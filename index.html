@@ -25,7 +25,28 @@
           <div class="canvas-footer"><span id="position">64 × 64 pixels</span><span>Draw a little. Dream a lot. <span aria-hidden="true">✧</span></span></div>
         </section>
         <aside>
-          <section class="card"><div class="section-heading"><h2>Colors</h2><span id="color-count"></span></div><p class="card-description">Find your favorite shade.</p><div id="palette" aria-label="Color palette"></div><div class="custom-color"><label for="custom-color">Custom color</label><div class="color-input"><input type="color" id="custom-color" value="#6d5ce7" aria-label="Choose a custom color" /><span id="color-value">#6D5CE7</span></div></div></section>
+          <section class="card colors-card">
+            <div class="section-heading"><h2>Colors</h2></div>
+            <div class="color-preview"><span id="color-preview-swatch" class="color-preview-swatch" aria-hidden="true"></span><div class="color-preview-text"><span class="color-preview-label">Selected color</span><span id="color-value">#6D5CE7</span></div></div>
+            <details class="color-section" data-section="wheel" open>
+              <summary>Color wheel</summary>
+              <div id="color-wheel" class="color-wheel">
+                <canvas id="hue-ring" tabindex="0" role="slider" aria-label="Hue" aria-valuemin="0" aria-valuemax="360" aria-valuenow="0"></canvas>
+                <canvas id="sv-square" tabindex="0" role="slider" aria-label="Saturation and brightness. Left and right change saturation, up and down change brightness." aria-valuetext=""></canvas>
+                <span id="hue-marker" class="picker-marker" aria-hidden="true"></span>
+                <span id="sv-marker" class="picker-marker" aria-hidden="true"></span>
+              </div>
+              <details class="color-section advanced-section" data-section="advanced">
+                <summary>Advanced</summary>
+                <div id="channel-list" class="channel-list"></div>
+                <div class="hex-row"><label for="hex-input">Hex</label><input id="hex-input" type="text" maxlength="7" spellcheck="false" autocomplete="off" /></div>
+              </details>
+            </details>
+            <details class="color-section" data-section="swatches">
+              <summary>Swatches <span id="color-count"></span></summary>
+              <div id="palette" aria-label="Color palette"></div>
+            </details>
+          </section>
           <section class="card actions"><h2>Your canvas</h2><label class="size-control" for="canvas-size">Canvas size<select id="canvas-size"><option value="64">64 × 64</option><option value="40">40 × 40</option><option value="25">25 × 25</option></select></label><p class="size-help">Each size keeps its own drawing.</p><div class="history-buttons"><button id="undo" disabled>↶ Undo</button><button id="redo" disabled>↷ Redo</button></div><button id="download" class="primary">↓ <span>Download PNG</span></button><button id="clear" class="clear">Clear canvas</button></section>
           <p class="tip"><span aria-hidden="true">✦</span> A blank canvas is a great beginning.<br />Your next little masterpiece starts here.</p>
         </aside>

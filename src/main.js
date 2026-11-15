@@ -2,6 +2,8 @@ import { linePixels, colorAtCell } from './pixels.js';
 import { brushCells, cellsInsideCanvas } from './brush.js';
 import { createBrushPanel } from './brushPanel.js';
 import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
+import { createColorPicker } from './colorPicker.js';
+import { loadSectionState, saveSectionState } from './colorSections.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
@@ -70,9 +72,10 @@ function selectTool(next) {
   }
   canvas.classList.toggle('picking', next === 'eyedropper');
 }
-function selectColor(color) {
+// Used by the picker itself. It does not move the picker, so the picker keeps its exact HSV (and its hue for grays).
+function useColor(color) {
   selectedColor = color.toLowerCase();
-  $('custom-color').value = selectedColor;
+  $('color-preview-swatch').style.background = selectedColor;
   $('color-value').textContent = selectedColor.toUpperCase();
   document.querySelectorAll('.swatch').forEach((button) => {
     const selected = button.dataset.color === selectedColor;
@@ -80,6 +83,12 @@ function selectColor(color) {
     button.setAttribute('aria-pressed', String(selected));
   });
   selectTool('pencil');
+}
+const colorPicker = createColorPicker({ onUserChange: useColor });
+// Used for colors chosen outside the picker (swatches, eyedropper), so the picker moves to show them.
+function selectColor(color) {
+  colorPicker.showColor(color);
+  useColor(color);
 }
 colors.forEach((color) => {
   const button = document.createElement('button');
@@ -92,7 +101,26 @@ colors.forEach((color) => {
   $('palette').append(button);
 });
 $('color-count').textContent = `${colors.length} shades`;
-$('custom-color').addEventListener('input', (event) => selectColor(event.target.value));
+function browserStorage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null; // Some privacy settings block storage access completely.
+  }
+}
+// Each closable part of the Colors card remembers if it was open.
+function connectColorSections() {
+  const storage = browserStorage();
+  const state = loadSectionState(storage);
+  document.querySelectorAll('details[data-section]').forEach((section) => {
+    section.open = state[section.dataset.section];
+    section.addEventListener('toggle', () => {
+      state[section.dataset.section] = section.open;
+      saveSectionState(storage, state);
+    });
+  });
+}
+connectColorSections();
 // A click on the active tool button while its panel is open closes the panel; any other click opens it.
 function toggleBrushPanel(toolName) {
   if (tool === toolName && brushPanel.openTool() === toolName) {
