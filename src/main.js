@@ -1,4 +1,4 @@
-import { linePixels } from './pixels.js';
+import { linePixels, colorAtCell } from './pixels.js';
 import { brushCells, cellsInsideCanvas } from './brush.js';
 import { createBrushPanel } from './brushPanel.js';
 import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
@@ -64,10 +64,11 @@ function commit(before) {
 function selectTool(next) {
   tool = next;
   if (brushPanel.openTool() !== null && brushPanel.openTool() !== next) brushPanel.close();
-  for (const name of ['pencil', 'eraser']) {
+  for (const name of ['pencil', 'eraser', 'eyedropper']) {
     $(name).classList.toggle('active', name === next);
     $(name).setAttribute('aria-pressed', String(name === next));
   }
+  canvas.classList.toggle('picking', next === 'eyedropper');
 }
 function selectColor(color) {
   selectedColor = color.toLowerCase();
@@ -103,6 +104,7 @@ function toggleBrushPanel(toolName) {
 }
 $('pencil').addEventListener('click', () => toggleBrushPanel('pencil'));
 $('eraser').addEventListener('click', () => toggleBrushPanel('eraser'));
+$('eyedropper').addEventListener('click', () => selectTool('eyedropper'));
 $('grid').addEventListener('change', (event) => { $('grid-overlay').hidden = !event.target.checked; });
 
 function pointFromEvent(event) {
@@ -125,6 +127,11 @@ function updateBrushOutline(point) {
   if (activePointer !== null || !brushSettings[tool]) return hideBrushOutline();
   showBrushOutline(currentBrushCells(point[0], point[1]), size);
 }
+// Picking only reads the drawing, so it creates no undo step. selectColor() switches back to the pencil.
+function pickColor(point) {
+  const color = colorAtCell(pixels, size, point);
+  if (color !== null) selectColor(color);
+}
 function finishStroke() {
   if (activePointer === null) return;
   activePointer = null;
@@ -137,6 +144,7 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.focus({ preventScroll: true });
   $('cursor').hidden = true;
   hideBrushOutline();
+  if (tool === 'eyedropper') return pickColor(pointFromEvent(event));
   activePointer = event.pointerId;
   canvas.setPointerCapture(event.pointerId);
   strokeBefore = pixels.slice();
@@ -194,8 +202,12 @@ canvas.addEventListener('keydown', (event) => {
     keyboardPoint = keyboardPoint.map((value, axis) => Math.max(0, Math.min(size - 1, value + movements[event.key][axis])));
   } else if (event.key === ' ' || event.key === 'Enter') {
     event.preventDefault();
-    const before = pixels.slice();
-    paint(keyboardPoint, keyboardPoint); commit(before);
+    if (tool === 'eyedropper') {
+      pickColor(keyboardPoint);
+    } else {
+      const before = pixels.slice();
+      paint(keyboardPoint, keyboardPoint); commit(before);
+    }
   } else return;
   $('cursor').hidden = false;
   $('cursor').style.left = `${keyboardPoint[0] / size * 100}%`;
@@ -215,6 +227,7 @@ document.addEventListener('keydown', (event) => {
   } else if (!event.ctrlKey && !event.metaKey && !event.altKey) {
     if (key === 'p') selectTool('pencil');
     if (key === 'e') selectTool('eraser');
+    if (key === 'i') selectTool('eyedropper');
   }
 });
 

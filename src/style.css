@@ -7,5 +7,8 @@
 /* Hover outline: a light and a dark line, so it shows on both light and dark cells. */
 #brush-outline{position:absolute;inset:0;pointer-events:none}#brush-outline[hidden]{display:none}#brush-outline svg{display:block;width:100%;height:100%;overflow:visible}#brush-outline path{fill:none;vector-effect:non-scaling-stroke}#brush-outline .outline-light{stroke:white;stroke-width:3}#brush-outline .outline-dark{stroke:#222;stroke-width:1}
 
+/* Eyedropper: a different cursor tells the user that a click picks a color and does not draw. */
+canvas.picking{cursor:copy}
+
 /* Resolution controls stay available on mobile, alongside the canvas actions. */
 .size-control{display:grid;gap:8px;font-size:11px;color:#8c8596;margin-top:6px}.size-control select{width:100%;font:inherit;font-size:12px;color:#777382;background:white;border:1px solid #e6e2eb;border-radius:6px;padding:9px}.size-help{font-size:10px;line-height:1.5;color:#99939f;margin:0}select:focus-visible{outline:3px solid #9b8af5;outline-offset:3px}
