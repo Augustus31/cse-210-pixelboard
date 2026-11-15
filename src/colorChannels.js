@@ -1,5 +1,5 @@
 /**
- * The "Advanced" part of the color picker: a slider and a number input for H, S, V, R, G, B, and a hex input.
+ * The "Advanced" part of the color picker: a slider and a number input for H, S, V, R, G, B, A (alpha), and a hex input.
  * @module colorChannels
  */
 import { hsvToRgb, rgbToHex, hexToRgb, rgbToHsv, withChannel } from './color.js';
@@ -12,6 +12,7 @@ const CHANNELS = [
   { key: 'r', label: 'R', name: 'Red', max: 255 },
   { key: 'g', label: 'G', name: 'Green', max: 255 },
   { key: 'b', label: 'B', name: 'Blue', max: 255 },
+  { key: 'a', label: 'A', name: 'Alpha (opacity)', max: 100 },
 ];
 
 function createChannelRow({ key, label, name, max }) {
@@ -53,7 +54,7 @@ export function createColorChannels({ onUserInput }) {
   hexInput.addEventListener('change', () => {
     const rgb = hexToRgb(hexInput.value);
     // Invalid text: show the last valid hex again.
-    onUserInput(rgb ? rgbToHsv(rgb, shownHsv.h) : shownHsv);
+    onUserInput(rgb ? { ...rgbToHsv(rgb, shownHsv.h), a: shownHsv.a } : shownHsv);
   });
 
   function show(hsv) {

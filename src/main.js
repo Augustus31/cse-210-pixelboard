@@ -3,6 +3,7 @@ import { brushCells, cellsInsideCanvas } from './brush.js';
 import { createBrushPanel } from './brushPanel.js';
 import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
 import { createColorPicker } from './colorPicker.js';
+import { blendHex } from './color.js';
 import { loadSectionState, saveSectionState } from './colorSections.js';
 
 const SIZES = [64, 40, 25];
@@ -21,6 +22,8 @@ const colors = [
 ];
 let pixels = Array(size * size).fill('#ffffff');
 let selectedColor = '#6d5ce7';
+// Opacity of the pencil, 0–100. At 100 the pencil works the same as before alpha existed.
+let selectedAlpha = 100;
 let tool = 'pencil';
 let lastPoint = null;
 let activePointer = null;
@@ -73,10 +76,13 @@ function selectTool(next) {
   canvas.classList.toggle('picking', next === 'eyedropper');
 }
 // Used by the picker itself. It does not move the picker, so the picker keeps its exact HSV (and its hue for grays).
-function useColor(color) {
+function useColor(color, alpha) {
   selectedColor = color.toLowerCase();
-  $('color-preview-swatch').style.background = selectedColor;
+  selectedAlpha = alpha;
+  $('color-preview-fill').style.background = selectedColor;
+  $('color-preview-fill').style.opacity = String(selectedAlpha / 100);
   $('color-value').textContent = selectedColor.toUpperCase();
+  $('alpha-value').textContent = `${Math.round(selectedAlpha)}%`;
   document.querySelectorAll('.swatch').forEach((button) => {
     const selected = button.dataset.color === selectedColor;
     button.classList.toggle('selected', selected);
@@ -86,9 +92,10 @@ function useColor(color) {
 }
 const colorPicker = createColorPicker({ onUserChange: useColor });
 // Used for colors chosen outside the picker (swatches, eyedropper), so the picker moves to show them.
-function selectColor(color) {
-  colorPicker.showColor(color);
-  useColor(color);
+// Swatch and eyedropper colors are opaque, so alpha goes back to 100% unless a caller gives another value.
+function selectColor(color, alpha = 100) {
+  colorPicker.showColor(color, alpha);
+  useColor(color, alpha);
 }
 colors.forEach((color) => {
   const button = document.createElement('button');
@@ -143,11 +150,19 @@ function currentBrushCells(x, y) {
   const { size: brushSize, shape } = brushSettings[tool];
   return cellsInsideCanvas(brushCells(x, y, brushSize, shape), size);
 }
+// The pencil blends against the cell color from before the stroke (strokeBase), not the current one,
+// so a drag that passes over the same cell again does not make it darker. The eraser is always opaque white.
+function paintedColor(index, strokeBase) {
+  if (tool === 'eraser') return '#ffffff';
+  return blendHex(selectedColor, strokeBase[index], selectedAlpha / 100);
+}
 // Stamp the brush at every point of the line, so fast drags leave no gaps.
-function paint(from, to) {
-  const color = tool === 'eraser' ? '#ffffff' : selectedColor;
+function paint(from, to, strokeBase) {
   for (const [x, y] of linePixels(from, to)) {
-    for (const [cellX, cellY] of currentBrushCells(x, y)) pixels[cellY * size + cellX] = color;
+    for (const [cellX, cellY] of currentBrushCells(x, y)) {
+      const index = cellY * size + cellX;
+      pixels[index] = paintedColor(index, strokeBase);
+    }
   }
   render();
 }
@@ -177,13 +192,13 @@ canvas.addEventListener('pointerdown', (event) => {
   canvas.setPointerCapture(event.pointerId);
   strokeBefore = pixels.slice();
   lastPoint = pointFromEvent(event);
-  paint(lastPoint, lastPoint);
+  paint(lastPoint, lastPoint, strokeBefore);
 });
 canvas.addEventListener('pointermove', (event) => {
   const point = pointFromEvent(event);
   $('position').textContent = `${Math.max(0, Math.min(size - 1, point[0]))}, ${Math.max(0, Math.min(size - 1, point[1]))} · ${size} × ${size}`;
   if (event.pointerId !== activePointer) return updateBrushOutline(point);
-  paint(lastPoint, point);
+  paint(lastPoint, point, strokeBefore);
   lastPoint = point;
 });
 // Capture keeps a drag consistent when it crosses the canvas edge; cancellation commits safely.
@@ -234,7 +249,7 @@ canvas.addEventListener('keydown', (event) => {
       pickColor(keyboardPoint);
     } else {
       const before = pixels.slice();
-      paint(keyboardPoint, keyboardPoint); commit(before);
+      paint(keyboardPoint, keyboardPoint, before); commit(before);
     }
   } else return;
   $('cursor').hidden = false;

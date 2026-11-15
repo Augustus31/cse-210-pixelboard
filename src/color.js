@@ -53,7 +53,23 @@ export function rgbToHsv({ r, g, b }, fallbackHue = 0) {
  */
 export function withChannel(hsv, channel, value) {
   if (channel in hsv) return { ...hsv, [channel]: value };
-  return rgbToHsv({ ...hsvToRgb(hsv), [channel]: value }, hsv.h);
+  // Spread hsv first, so extra fields such as alpha (a) stay the same.
+  return { ...hsv, ...rgbToHsv({ ...hsvToRgb(hsv), [channel]: value }, hsv.h) };
+}
+
+/**
+ * Mixes a new color over an old color, like a thin layer of watercolor.
+ * Each channel: round(alpha × new + (1 − alpha) × old). The result is opaque.
+ * @param {string} newHex - The color being painted, '#rrggbb'
+ * @param {string} oldHex - The color already in the cell, '#rrggbb'
+ * @param {number} alpha - 0 (keep the old color) to 1 (use the new color)
+ * @returns {string} The mixed color, '#rrggbb'
+ */
+export function blendHex(newHex, oldHex, alpha) {
+  const top = hexToRgb(newHex);
+  const bottom = hexToRgb(oldHex);
+  const mix = (channel) => Math.round(alpha * top[channel] + (1 - alpha) * bottom[channel]);
+  return rgbToHex({ r: mix('r'), g: mix('g'), b: mix('b') });
 }
 
 /**

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb, withChannel } from '../src/color.js';
+import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb, withChannel, blendHex } from '../src/color.js';
 
 test('hsvToRgb converts the primary colors', () => {
   assert.deepEqual(hsvToRgb({ h: 0, s: 100, v: 100 }), { r: 255, g: 0, b: 0 });
@@ -79,4 +79,25 @@ test('withChannel keeps the hue when an RGB change makes the color gray', () => 
   const gray = withChannel(start, 'b', 100);
   assert.equal(gray.s, 0);
   assert.equal(gray.h, 240);
+});
+
+test('withChannel keeps alpha (a) when an RGB channel changes, and can change alpha', () => {
+  const start = { ...rgbToHsv({ r: 100, g: 150, b: 200 }), a: 40 };
+  assert.equal(withChannel(start, 'r', 250).a, 40);
+  assert.equal(withChannel(start, 'a', 75).a, 75);
+  assert.deepEqual(hsvToRgb(withChannel(start, 'a', 75)), { r: 100, g: 150, b: 200 });
+});
+
+test('blendHex at alpha 1 gives the new color', () => {
+  assert.equal(blendHex('#6d5ce7', '#ffffff', 1), '#6d5ce7');
+});
+
+test('blendHex at alpha 0 keeps the old color', () => {
+  assert.equal(blendHex('#6d5ce7', '#123456', 0), '#123456');
+});
+
+test('blendHex at alpha 0.5 mixes each channel half and half, rounded', () => {
+  assert.equal(blendHex('#000000', '#ffffff', 0.5), '#808080');
+  assert.equal(blendHex('#ff0000', '#0000ff', 0.5), '#800080');
+  assert.equal(blendHex('#0a0b0c', '#000000', 0.5), '#050606');
 });

@@ -1,6 +1,6 @@
 /**
  * The custom color picker: hue ring, saturation/value square, and the Advanced controls.
- * The picker state is HSV. RGB and hex are computed from it.
+ * The picker state is HSV plus alpha (a, 0–100). RGB and hex are computed from it.
  * @module colorPicker
  */
 import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb } from './color.js';
@@ -15,8 +15,8 @@ const clampPercent = (value) => Math.min(100, Math.max(0, value));
 /**
  * Connects the color picker elements.
  * @param {Object} options
- * @param {(hex: string) => void} options.onUserChange - Called with '#rrggbb' each time the user changes the color in the picker
- * @returns {{showColor: (hex: string) => void}} showColor() moves the picker to a color chosen somewhere else (swatch, eyedropper)
+ * @param {(hex: string, alpha: number) => void} options.onUserChange - Called with '#rrggbb' and alpha (0–100) each time the user changes the picker
+ * @returns {{showColor: (hex: string, alpha: number) => void}} showColor() moves the picker to a color chosen somewhere else (swatch, eyedropper)
  */
 export function createColorPicker({ onUserChange }) {
   const wheel = document.getElementById('color-wheel');
@@ -25,7 +25,7 @@ export function createColorPicker({ onUserChange }) {
   const hueMarker = document.getElementById('hue-marker');
   const squareMarker = document.getElementById('sv-marker');
   const channels = createColorChannels({ onUserInput: changeFromUser });
-  let hsv = { h: 0, s: 0, v: 0 };
+  let hsv = { h: 0, s: 0, v: 0, a: 100 };
   let drawnHue = null;
 
   placeSquare();
@@ -68,14 +68,14 @@ export function createColorPicker({ onUserChange }) {
   function changeFromUser(nextHsv) {
     hsv = nextHsv;
     showState();
-    onUserChange(rgbToHex(hsvToRgb(hsv)));
+    onUserChange(rgbToHex(hsvToRgb(hsv)), hsv.a);
   }
 
-  function showColor(hex) {
+  function showColor(hex, alpha) {
     const rgb = hexToRgb(hex);
     if (!rgb) return;
     // Keep the last hue for grays, so the ring marker does not jump to red.
-    hsv = rgbToHsv(rgb, hsv.h);
+    hsv = { ...rgbToHsv(rgb, hsv.h), a: alpha };
     showState();
   }
 
