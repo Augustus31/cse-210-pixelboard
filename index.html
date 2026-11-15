@@ -14,8 +14,14 @@
       <div class="intro"><div><p class="eyebrow">A LITTLE SPACE TO CREATE</p><h1>Make something pixel-perfect.</h1><p>Pick a color, grab a tool, and see where your imagination goes.</p></div><span class="size-badge"><span></span> <span id="size-label">64 × 64 canvas</span></span></div>
       <div class="workspace">
         <section class="drawing-panel" aria-label="Drawing workspace">
-          <div class="canvas-toolbar"><div class="tools" role="group" aria-label="Drawing tools"><button id="pencil" class="active" aria-pressed="true" title="Pencil (P)">✎ <span>Pencil</span></button><button id="eraser" aria-pressed="false" title="Eraser (E)">▱ <span>Eraser</span></button></div><label class="grid-toggle"><input id="grid" type="checkbox" checked /> Show grid</label></div>
-          <div class="canvas-stage"><div class="canvas-wrap"><canvas id="drawing" width="64" height="64" tabindex="0" aria-label="64 by 64 drawing canvas. Drag to draw, or use arrow keys to move and Space to paint."></canvas><div id="grid-overlay" aria-hidden="true"></div><div id="cursor" hidden aria-hidden="true"></div></div></div>
+          <div class="canvas-toolbar"><div class="tools" role="group" aria-label="Drawing tools"><button id="pencil" class="active" aria-pressed="true" aria-expanded="false" aria-controls="brush-panel" title="Pencil (P)">✎ <span>Pencil</span></button><button id="eraser" aria-pressed="false" aria-expanded="false" aria-controls="brush-panel" title="Eraser (E)">▱ <span>Eraser</span></button></div><label class="grid-toggle"><input id="grid" type="checkbox" checked /> Show grid</label>
+            <div id="brush-panel" class="brush-panel" role="group" aria-label="Brush settings" hidden>
+              <label class="brush-label" for="brush-size-range">Size</label>
+              <div class="brush-size-row"><input type="range" id="brush-size-range" min="1" max="16" step="1" value="1" aria-label="Brush size" /><input type="number" id="brush-size-number" min="1" max="16" step="1" value="1" aria-label="Brush size number" /><span id="brush-size-max">/ 16</span></div>
+              <div class="brush-shape" role="group" aria-label="Brush shape"><button type="button" data-shape="square" aria-pressed="true">■ Square</button><button type="button" data-shape="round" aria-pressed="false">● Round</button></div>
+            </div>
+          </div>
+          <div class="canvas-stage"><div class="canvas-wrap"><canvas id="drawing" width="64" height="64" tabindex="0" aria-label="64 by 64 drawing canvas. Drag to draw, or use arrow keys to move and Space to paint."></canvas><div id="grid-overlay" aria-hidden="true"></div><div id="cursor" hidden aria-hidden="true"></div><div id="brush-outline" hidden aria-hidden="true"><svg viewBox="0 0 64 64" preserveAspectRatio="none"><path class="outline-light" /><path class="outline-dark" /></svg></div></div></div>
           <div class="canvas-footer"><span id="position">64 × 64 pixels</span><span>Draw a little. Dream a lot. <span aria-hidden="true">✧</span></span></div>
         </section>
         <aside>

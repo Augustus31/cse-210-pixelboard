@@ -1,4 +1,7 @@
 import { linePixels } from './pixels.js';
+import { brushCells, cellsInsideCanvas } from './brush.js';
+import { createBrushPanel } from './brushPanel.js';
+import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
@@ -24,6 +27,9 @@ let keyboardPoint = [0, 0];
 let undoStack = [], redoStack = [];
 // Keep a separate drawing and undo history for each resolution during this session.
 const drawings = {};
+// Users often erase with a bigger brush than they draw with, so each tool keeps its own settings.
+const brushSettings = { pencil: { size: 1, shape: 'square' }, eraser: { size: 1, shape: 'square' } };
+const brushPanel = createBrushPanel({ settingsByTool: brushSettings, getCanvasSize: () => size });
 
 // Store pixel colors rather than a scaled image: exports match the selected resolution.
 function render() {
@@ -57,6 +63,7 @@ function commit(before) {
 }
 function selectTool(next) {
   tool = next;
+  if (brushPanel.openTool() !== null && brushPanel.openTool() !== next) brushPanel.close();
   for (const name of ['pencil', 'eraser']) {
     $(name).classList.toggle('active', name === next);
     $(name).setAttribute('aria-pressed', String(name === next));
@@ -85,19 +92,38 @@ colors.forEach((color) => {
 });
 $('color-count').textContent = `${colors.length} shades`;
 $('custom-color').addEventListener('input', (event) => selectColor(event.target.value));
-$('pencil').addEventListener('click', () => selectTool('pencil'));
-$('eraser').addEventListener('click', () => selectTool('eraser'));
+// A click on the active tool button while its panel is open closes the panel; any other click opens it.
+function toggleBrushPanel(toolName) {
+  if (tool === toolName && brushPanel.openTool() === toolName) {
+    brushPanel.close();
+    return;
+  }
+  selectTool(toolName);
+  brushPanel.open(toolName, $(toolName));
+}
+$('pencil').addEventListener('click', () => toggleBrushPanel('pencil'));
+$('eraser').addEventListener('click', () => toggleBrushPanel('eraser'));
 $('grid').addEventListener('change', (event) => { $('grid-overlay').hidden = !event.target.checked; });
 
 function pointFromEvent(event) {
   const rect = canvas.getBoundingClientRect();
   return [Math.floor((event.clientX - rect.left) / rect.width * size), Math.floor((event.clientY - rect.top) / rect.height * size)];
 }
+function currentBrushCells(x, y) {
+  const { size: brushSize, shape } = brushSettings[tool];
+  return cellsInsideCanvas(brushCells(x, y, brushSize, shape), size);
+}
+// Stamp the brush at every point of the line, so fast drags leave no gaps.
 function paint(from, to) {
+  const color = tool === 'eraser' ? '#ffffff' : selectedColor;
   for (const [x, y] of linePixels(from, to)) {
-    if (x >= 0 && x < size && y >= 0 && y < size) pixels[y * size + x] = tool === 'eraser' ? '#ffffff' : selectedColor;
+    for (const [cellX, cellY] of currentBrushCells(x, y)) pixels[cellY * size + cellX] = color;
   }
   render();
+}
+function updateBrushOutline(point) {
+  if (activePointer !== null || !brushSettings[tool]) return hideBrushOutline();
+  showBrushOutline(currentBrushCells(point[0], point[1]), size);
 }
 function finishStroke() {
   if (activePointer === null) return;
@@ -110,6 +136,7 @@ canvas.addEventListener('pointerdown', (event) => {
   if (event.button !== 0 || activePointer !== null) return;
   canvas.focus({ preventScroll: true });
   $('cursor').hidden = true;
+  hideBrushOutline();
   activePointer = event.pointerId;
   canvas.setPointerCapture(event.pointerId);
   strokeBefore = pixels.slice();
@@ -119,7 +146,7 @@ canvas.addEventListener('pointerdown', (event) => {
 canvas.addEventListener('pointermove', (event) => {
   const point = pointFromEvent(event);
   $('position').textContent = `${Math.max(0, Math.min(size - 1, point[0]))}, ${Math.max(0, Math.min(size - 1, point[1]))} · ${size} × ${size}`;
-  if (event.pointerId !== activePointer) return;
+  if (event.pointerId !== activePointer) return updateBrushOutline(point);
   paint(lastPoint, point);
   lastPoint = point;
 });
@@ -127,7 +154,10 @@ canvas.addEventListener('pointermove', (event) => {
 for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   canvas.addEventListener(name, (event) => { if (event.pointerId === activePointer) finishStroke(); });
 }
-canvas.addEventListener('pointerleave', () => { $('position').textContent = `${size} × ${size} pixels`; });
+canvas.addEventListener('pointerleave', () => {
+  $('position').textContent = `${size} × ${size} pixels`;
+  hideBrushOutline();
+});
 $('undo').addEventListener('click', () => {
   finishStroke();
   if (!undoStack.length) return;
@@ -170,9 +200,13 @@ canvas.addEventListener('keydown', (event) => {
   $('cursor').hidden = false;
   $('cursor').style.left = `${keyboardPoint[0] / size * 100}%`;
   $('cursor').style.top = `${keyboardPoint[1] / size * 100}%`;
+  updateBrushOutline(keyboardPoint);
   $('position').textContent = `${keyboardPoint.join(', ')} · ${size} × ${size}`;
 });
-canvas.addEventListener('blur', () => { $('cursor').hidden = true; });
+canvas.addEventListener('blur', () => {
+  $('cursor').hidden = true;
+  hideBrushOutline();
+});
 document.addEventListener('keydown', (event) => {
   if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName)) return;
   const key = event.key.toLowerCase();
@@ -194,6 +228,8 @@ function updateCanvasSize() {
   $('position').textContent = `${size} × ${size} pixels`;
   keyboardPoint = [0, 0];
   $('cursor').hidden = true;
+  hideBrushOutline();
+  brushPanel.clampToCanvas(size);
   updateHistory();
   render();
 }
