@@ -19,10 +19,10 @@ Open the local URL printed in the terminal. To create a production build, run `n
 - Tools: Pencil (**P**), Eraser (**E**), and Eyedropper (**I**). The eraser paints white. The eyedropper picks the color of a cell, then changes back to the pencil.
 - Click the Pencil or Eraser button to open its brush panel: size (1 up to a quarter of the canvas size) and shape (Square or Round). Each tool keeps its own size and shape. Close the panel with a second click, **Esc**, or a click outside it.
 - When the pointer is over the canvas, an outline shows which cells the brush will change.
-- Undo/redo with the buttons or **Ctrl/Cmd + Z** / **Ctrl/Cmd + Shift + Z**. Clear is undoable too.
+- Undo/redo with the buttons or **Ctrl/Cmd + Z** / **Ctrl/Cmd + Shift + Z**. Erase all (beside Eraser) clears the current canvas and is undoable too.
 - Select a canvas size under Your canvas. Each size keeps its own drawing and session undo/redo history.
 - Toggle the grid or download a PNG at the selected resolution without the grid.
-- Focus the canvas with Tab, move with arrow keys, and paint with Space or Enter. Keyboard painting uses the current brush size and shape.
+- Focus the canvas with Tab, move with arrow keys, and paint with Space or Enter. Hold Space while pressing or holding arrow keys to draw a continuous path; release Space to finish one undoable stroke. Keyboard painting uses the current brush size and shape.
 
 ## Colors
 

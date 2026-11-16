@@ -31,6 +31,7 @@ let lastPoint = null;
 let activePointer = null;
 let strokeBefore = null;
 let keyboardPoint = [0, 0];
+let keyboardStrokeBefore = null;
 let undoStack = [], redoStack = [];
 // Keep a separate drawing and undo history for each resolution during this session.
 const drawings = {};
@@ -186,6 +187,7 @@ function pickColor(point) {
   if (color !== null) selectColor(color);
 }
 function finishStroke() {
+  finishKeyboardStroke();
   if (activePointer === null) return;
   activePointer = null;
   lastPoint = null;
@@ -194,6 +196,7 @@ function finishStroke() {
 }
 canvas.addEventListener('pointerdown', (event) => {
   if (event.button !== 0 || activePointer !== null) return;
+  finishKeyboardStroke();
   canvas.focus({ preventScroll: true });
   $('cursor').hidden = true;
   hideBrushOutline();
@@ -233,6 +236,7 @@ $('redo').addEventListener('click', () => {
   pixels = redoStack.pop();
   render(); updateHistory(); save();
 });
+// Erase all affects only the current resolution and stays reversible with Undo.
 $('clear').addEventListener('click', () => {
   finishStroke();
   const before = pixels.slice();
@@ -247,17 +251,35 @@ $('download').addEventListener('click', () => {
   link.click();
 });
 
-// Keyboard users can navigate individual pixels and paint without a pointer.
+// Holding Space makes arrow movement a single continuous, undoable drawing stroke.
+function finishKeyboardStroke() {
+  const before = keyboardStrokeBefore;
+  keyboardStrokeBefore = null;
+  rememberStrokeColor(commit(before));
+}
 canvas.addEventListener('keydown', (event) => {
+  if (activePointer !== null) return;
   const movements = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   if (movements[event.key]) {
     event.preventDefault();
+    const previousPoint = keyboardPoint;
     keyboardPoint = keyboardPoint.map((value, axis) => Math.max(0, Math.min(size - 1, value + movements[event.key][axis])));
-  } else if (event.key === ' ' || event.key === 'Enter') {
+    if (keyboardStrokeBefore) paint(previousPoint, keyboardPoint, keyboardStrokeBefore);
+  } else if (event.key === ' ') {
     event.preventDefault();
-    if (tool === 'eyedropper') {
-      pickColor(keyboardPoint);
-    } else {
+    // Ignore auto-repeat until a fresh Space press, including after focus loss.
+    if (!event.repeat && !keyboardStrokeBefore) {
+      if (tool === 'eyedropper') pickColor(keyboardPoint);
+      else {
+        keyboardStrokeBefore = pixels.slice();
+        paint(keyboardPoint, keyboardPoint, keyboardStrokeBefore);
+      }
+    }
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    finishKeyboardStroke();
+    if (tool === 'eyedropper') pickColor(keyboardPoint);
+    else {
       const before = pixels.slice();
       paint(keyboardPoint, keyboardPoint, before);
       rememberStrokeColor(commit(before));
@@ -269,10 +291,16 @@ canvas.addEventListener('keydown', (event) => {
   updateBrushOutline(keyboardPoint);
   $('position').textContent = `${keyboardPoint.join(', ')} · ${size} × ${size}`;
 });
+document.addEventListener('keyup', (event) => {
+  if (event.key === ' ') finishKeyboardStroke();
+});
+// End a held-key stroke if focus leaves, even if keyup occurs outside the page.
 canvas.addEventListener('blur', () => {
+  finishKeyboardStroke();
   $('cursor').hidden = true;
   hideBrushOutline();
 });
+window.addEventListener('blur', finishKeyboardStroke);
 document.addEventListener('keydown', (event) => {
   if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName)) return;
   const key = event.key.toLowerCase();

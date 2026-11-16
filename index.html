@@ -20,7 +20,7 @@
           <p id="drafts-empty" class="drafts-empty">Saved drafts show up here.</p>
         </section>
         <section class="drawing-panel" aria-label="Drawing workspace">
-          <div class="canvas-toolbar"><div class="tools" role="group" aria-label="Drawing tools"><button id="pencil" class="active" aria-pressed="true" aria-expanded="false" aria-controls="brush-panel" title="Pencil (P)">✎ <span>Pencil</span></button><button id="eraser" aria-pressed="false" aria-expanded="false" aria-controls="brush-panel" title="Eraser (E)">▱ <span>Eraser</span></button><button id="eyedropper" aria-pressed="false" title="Eyedropper (I): click a cell to use its color">◉ <span>Eyedropper</span></button></div><label class="grid-toggle"><input id="grid" type="checkbox" checked /> Show grid</label>
+          <div class="canvas-toolbar"><div class="tools" role="group" aria-label="Drawing tools"><button id="pencil" class="active" aria-pressed="true" aria-expanded="false" aria-controls="brush-panel" title="Pencil (P)">✎ <span>Pencil</span></button><button id="eraser" aria-pressed="false" aria-expanded="false" aria-controls="brush-panel" title="Eraser (E)">▱ <span>Eraser</span></button><button id="clear" title="Erase every pixel on the current canvas (undoable)">Erase all</button><button id="eyedropper" aria-pressed="false" title="Eyedropper (I): click a cell to use its color">◉ <span>Eyedropper</span></button></div><label class="grid-toggle"><input id="grid" type="checkbox" checked /> Show grid</label>
             <div id="brush-panel" class="brush-panel" role="group" aria-label="Brush settings" hidden>
               <label class="brush-label" for="brush-size-range">Size</label>
               <div class="brush-size-row"><input type="range" id="brush-size-range" min="1" max="16" step="1" value="1" aria-label="Brush size" /><input type="number" id="brush-size-number" min="1" max="16" step="1" value="1" aria-label="Brush size number" /><span id="brush-size-max">/ 16</span></div>
@@ -54,7 +54,7 @@
               <div id="palette" aria-label="Color palette"></div>
             </details>
           </section>
-          <section class="card actions"><h2>Your canvas</h2><label class="size-control" for="canvas-size">Canvas size<select id="canvas-size"><option value="64">64 × 64</option><option value="40">40 × 40</option><option value="25">25 × 25</option></select></label><p class="size-help">Each size keeps its own drawing.</p><div class="history-buttons"><button id="undo" disabled>↶ Undo</button><button id="redo" disabled>↷ Redo</button></div><button id="download" class="primary">↓ <span>Download PNG</span></button><button id="clear" class="clear">Clear canvas</button></section>
+          <section class="card actions"><h2>Your canvas</h2><label class="size-control" for="canvas-size">Canvas size<select id="canvas-size"><option value="64">64 × 64</option><option value="40">40 × 40</option><option value="25">25 × 25</option></select></label><p class="size-help">Each size keeps its own drawing.</p><div class="history-buttons"><button id="undo" disabled>↶ Undo</button><button id="redo" disabled>↷ Redo</button></div><button id="download" class="primary">↓ <span>Download PNG</span></button></section>
           <p class="tip"><span aria-hidden="true">✦</span> A blank canvas is a great beginning.<br />Your next little masterpiece starts here.</p>
         </aside>
       </div>
