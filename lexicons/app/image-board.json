@@ -1,0 +1,36 @@
+{
+  "lexicon": 1,
+  "id": "app.image-board",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "image",
+          "width",
+          "height"
+        ],
+        "properties": {
+          "image": {
+            "type": "blob",
+            "accept": [
+              "image/png"
+            ]
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 512
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 512
+          }
+        }
+      }
+    }
+  }
+}
