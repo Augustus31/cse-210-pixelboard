@@ -345,13 +345,22 @@ function adjustScale(next, anchorX = null, anchorY = null) {
   next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
   if (next === scale) return;
   const rect = canvas.getBoundingClientRect();
+  // Where the anchor point is on screen BEFORE scaling (we want it to stay there).
+  let targetX, targetY;
+  if (anchorX !== null && anchorY !== null) {
+    targetX = anchorX;
+    targetY = anchorY;
+  } else {
+    // Zoom from center of the canvas (before scale changes)
+    targetX = rect.left + rect.width / 2;
+    targetY = rect.top + rect.height / 2;
+  }
   // Relative position of the anchor point within the canvas (0 to 1).
   let relX, relY;
   if (anchorX !== null && anchorY !== null) {
     relX = (anchorX - rect.left) / rect.width;
     relY = (anchorY - rect.top) / rect.height;
   } else {
-    // Zoom from center of the canvas
     relX = 0.5;
     relY = 0.5;
   }
@@ -359,11 +368,12 @@ function adjustScale(next, anchorX = null, anchorY = null) {
   scale = next;
   updateTransform();
   const newRect = canvas.getBoundingClientRect();
-  // Adjust pan so the same relative point stays at the anchor screen position.
-  const targetX = anchorX !== null ? anchorX : newRect.left + newRect.width / 2;
-  const targetY = anchorY !== null ? anchorY : newRect.top + newRect.height / 2;
-  panX += targetX - (newRect.left + relX * newRect.width);
-  panY += targetY - (newRect.top + relY * newRect.height);
+  // Where is that same relative point now (with unchanged pan)?
+  const currentAnchorX = newRect.left + relX * newRect.width;
+  const currentAnchorY = newRect.top + relY * newRect.height;
+  // Adjust pan so the anchor stays at its pre-scale screen position.
+  panX += targetX - currentAnchorX;
+  panY += targetY - currentAnchorY;
   updateTransform();
 }
 function resetZoom() {
