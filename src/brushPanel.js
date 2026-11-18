@@ -36,14 +36,27 @@ export function createBrushPanel({ settingsByTool, getCanvasSize }) {
     showSettings();
   }
 
+  function positionPanel() {
+    if (currentButton === null) return;
+    const toolbar = panel.offsetParent;
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const buttonRect = currentButton.getBoundingClientRect();
+    // Clamp the button alignment so the whole popup fits inside its toolbar.
+    const maximumLeft = Math.max(0, toolbar.clientWidth - panel.offsetWidth);
+    panel.style.left = `${Math.max(0, Math.min(buttonRect.left - toolbarRect.left, maximumLeft))}px`;
+  }
+
   function open(toolName, button) {
     currentTool = toolName;
     currentButton = button;
-    panel.style.left = `${button.offsetLeft}px`;
     panel.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     showSettings();
+    positionPanel();
   }
+
+  // Reposition an open popup when the toolbar resizes or its tool buttons wrap.
+  new ResizeObserver(positionPanel).observe(panel.parentElement);
 
   function close() {
     if (currentTool === null) return;
