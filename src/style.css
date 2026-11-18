@@ -36,7 +36,20 @@ input[type=checkbox], input[type=range] { accent-color: var(--accent); }
   justify-content: space-between;
   border-bottom: 2px solid var(--line);
 }
-.brand { font-family: var(--hand); font-size: 2.6rem; font-weight: 400; letter-spacing: .02em; line-height: 1; color: inherit; text-decoration: none; }
+.brand { flex: none; font-family: var(--hand); font-size: 2.6rem; font-weight: 400; letter-spacing: .02em; line-height: 1; color: inherit; text-decoration: none; }
+/* The account area may shrink, but only the user name gets shorter, so the header stays on one line. */
+.account { position: relative; display: flex; align-items: center; justify-content: flex-end; min-width: 0; margin-left: 16px; }
+.account button { flex: none; }
+.account-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.account-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+/* The login form opens over the page from the right edge, so it does not move the layout or leave the screen. */
+.login-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10; width: min(280px, calc(100vw - 32px)); display: grid; gap: 8px; padding: 14px; background: white; border: 2px solid var(--line); border-radius: 0; box-shadow: 0 4px 12px #0002; }
+.login-title { margin: 0 0 4px; font-family: var(--hand); font-size: 18px; }
+.login-popover label { font-size: 11px; color: var(--muted); }
+.login-popover input { width: 100%; min-width: 0; }
+.login-message { margin: 0; font-size: 11px; color: var(--muted); }
+.login-message:empty { display: none; }
+.login-popover .primary { justify-self: end; }
 main { max-width: 1180px; padding: 36px 28px 28px; margin: auto; }
 .workspace { display: grid; grid-template-columns: 150px minmax(0, 720px) 220px; justify-content: center; gap: 32px; align-items: start; }
 .drawing-panel { min-width: 0; }

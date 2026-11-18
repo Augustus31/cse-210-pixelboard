@@ -7,7 +7,7 @@
  * so a page reload logs the user out.
  *
  * Replace it with the real module: in `src/pixelEditor.js`, change the import
- * from `./authStub.js` to `./auth.js` (see `.agent/spec/spec2.md`, section 4.2.5).
+ * from `./authStub.js` to `./auth.js` after branch merge.
  *
  * Extra behavior that the real module does not have:
  * - `signIn` resolves, and fires the window event `auth-changed` with the user in

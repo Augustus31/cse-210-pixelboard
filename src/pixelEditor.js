@@ -7,6 +7,9 @@ import { blendHex } from './color.js';
 import { loadSectionState, saveSectionState } from './colorSections.js';
 import { createRecentColorsRow } from './recentColorsRow.js';
 import { createDraftsColumn } from './draftsColumn.js';
+import { createAccountMenu } from './accountMenu.js';
+// Stand-in login. Change only this line to './auth.js' when the real module is merged.
+import { initAuth, signIn, signOut } from './authStub.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
@@ -486,6 +489,12 @@ function applyDraft(draft) {
 createDraftsColumn({
   getCanvas: () => ({ size, pixels: pixels.slice() }),
   applyDraft,
+  showStatus: (message) => { $('save-status').textContent = message; },
+});
+createAccountMenu({
+  initAuth,
+  signIn,
+  signOut,
   showStatus: (message) => { $('save-status').textContent = message; },
 });
 

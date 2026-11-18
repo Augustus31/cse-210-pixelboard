@@ -10,7 +10,19 @@
   </head>
   <body>
     <div class="frame">
-    <header class="site-header"><a class="brand" href="./">Pixelboard</a></header>
+    <header class="site-header"><a class="brand" href="./">Pixelboard</a>
+      <div class="account" role="group" aria-label="Account">
+        <button id="login-button" type="button" aria-expanded="false" aria-controls="login-popover" disabled>Log in</button>
+        <div id="account-user" class="account-user" hidden><span id="account-name" class="account-name"></span><button id="logout-button" type="button">Log out</button></div>
+        <form id="login-popover" class="login-popover" aria-labelledby="login-title" hidden>
+          <p id="login-title" class="login-title">Log in with Bluesky</p>
+          <label for="login-handle">Handle</label>
+          <input id="login-handle" type="text" placeholder="you.bsky.social" autocapitalize="none" autocomplete="username" spellcheck="false" />
+          <p id="login-message" class="login-message" role="status"></p>
+          <button id="login-continue" class="primary" type="submit">Continue</button>
+        </form>
+      </div>
+    </header>
     <main>
       <div class="workspace">
         <details class="card drafts-column" open>
