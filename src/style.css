@@ -124,6 +124,7 @@ summary { padding: 3px 0; }
 .drafts-column > button { width: 100%; margin-bottom: 12px; }
 .draft-list { list-style: none; margin: 0; padding: 2px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 360px; overflow-y: auto; }
 .draft-list:empty { display: none; }
+.draft-delete { width: 100%; margin-top: 4px; padding: 4px 8px; color: #a12222; font-size: 13px; }
 .draft-item { display: grid; width: 100%; gap: 3px; padding: 5px; text-align: left; }
 .draft-item[aria-pressed=true] { border-color: var(--accent); outline: 1px solid var(--accent); }
 .draft-thumb { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; cursor: inherit; touch-action: auto; border: 2px solid var(--line); }

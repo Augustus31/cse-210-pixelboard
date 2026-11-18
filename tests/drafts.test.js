@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DRAFTS_KEY, createDraftStore, saveDraft, listDrafts, loadDraft } from '../src/drafts.js';
+import { DRAFTS_KEY, MAX_DRAFTS, createDraftStore, saveDraft, listDrafts, loadDraft, deleteDraft } from '../src/drafts.js';
 
 // A fake localStorage. maxCharacters makes setItem fail like a full browser storage.
 function fakeStorage({ maxCharacters = Infinity, initial = {} } = {}) {
@@ -36,8 +36,8 @@ test('the drafts key is separate from the auto-save key', () => {
   assert.notEqual(DRAFTS_KEY, 'pixelboard-v1');
 });
 
-test('the module exports the three async API functions', () => {
-  for (const apiFunction of [saveDraft, listDrafts, loadDraft]) assert.equal(apiFunction.constructor.name, 'AsyncFunction');
+test('the module exports the async API functions', () => {
+  for (const apiFunction of [saveDraft, listDrafts, loadDraft, deleteDraft]) assert.equal(apiFunction.constructor.name, 'AsyncFunction');
 });
 
 test('saveDraft resolves to the new draft with id, size, pixels, and an ISO time', async () => {
@@ -114,7 +114,7 @@ test('a full storage makes saveDraft reject with a readable message, and the lis
 
 test('missing storage makes every function reject with a readable message', async () => {
   const store = newStore({ storage: null });
-  for (const call of [() => store.saveDraft({ size: 25, pixels: blankPixels(25) }), () => store.listDrafts(), () => store.loadDraft('x')]) {
+  for (const call of [() => store.saveDraft({ size: 25, pixels: blankPixels(25) }), () => store.listDrafts(), () => store.loadDraft('x'), () => store.deleteDraft('x')]) {
     await assert.rejects(call(), /storage is not available/i);
   }
 });
@@ -148,4 +148,71 @@ test('each saved draft gets a different id by default', async () => {
   const first = await store.saveDraft({ size: 25, pixels: blankPixels(25) });
   const second = await store.saveDraft({ size: 25, pixels: blankPixels(25) });
   assert.notEqual(first.id, second.id);
+});
+
+
+test('deleteDraft removes only the requested snapshot and persists across store instances', async () => {
+  const storage = fakeStorage({ initial: { 'pixelboard-v1': 'current drawing' } });
+  const store = newStore({ storage });
+  const first = await store.saveDraft({ size: 25, pixels: blankPixels(25) });
+  const second = await store.saveDraft({ size: 40, pixels: blankPixels(40, '#123456') });
+  assert.equal(await store.deleteDraft(first.id), true);
+  const reopened = newStore({ storage });
+  assert.equal(await reopened.loadDraft(first.id), null);
+  assert.deepEqual(await reopened.listDrafts(), [second]);
+  assert.equal(storage.data['pixelboard-v1'], 'current drawing');
+});
+
+test('deleting the final draft leaves an empty list; repeating deletion returns false', async () => {
+  const store = newStore();
+  const draft = await store.saveDraft({ size: 25, pixels: blankPixels(25) });
+  assert.equal(await store.deleteDraft(draft.id), true);
+  assert.deepEqual(await store.listDrafts(), []);
+  assert.equal(await store.deleteDraft(draft.id), false);
+});
+
+test('deleting an unknown id does not rewrite storage', async () => {
+  const storage = fakeStorage();
+  const store = newStore({ storage });
+  await store.saveDraft({ size: 25, pixels: blankPixels(25) });
+  storage.setItem = () => { throw new Error('Unexpected write'); };
+  assert.equal(await store.deleteDraft('missing'), false);
+});
+
+test('delete failure reports an error and keeps the saved draft', async () => {
+  const storage = fakeStorage();
+  const store = newStore({ storage });
+  const draft = await store.saveDraft({ size: 25, pixels: blankPixels(25) });
+  storage.setItem = () => { throw new Error('Storage blocked'); };
+  await assert.rejects(store.deleteDraft(draft.id), /could not delete the draft: storage blocked/i);
+  assert.deepEqual(await store.loadDraft(draft.id), draft);
+});
+
+test('deleteDraft reports a read failure rather than discarding saved data', async () => {
+  const storage = { getItem() { throw new Error('Read blocked'); } };
+  await assert.rejects(newStore({ storage }).deleteDraft('x'), /could not read the drafts/i);
+});
+
+
+test('draft limit allows four saves, rejects a fifth without altering storage, and frees a slot on delete', async () => {
+  assert.equal(MAX_DRAFTS, 4);
+  const storage = fakeStorage();
+  const store = newStore({ storage });
+  const saved = [];
+  for (let i = 0; i < MAX_DRAFTS; i++) saved.push(await store.saveDraft({ size: 25, pixels: blankPixels(25) }));
+  const before = storage.data[DRAFTS_KEY];
+  // Another instance also sees the persisted limit.
+  await assert.rejects(newStore({ storage }).saveDraft({ size: 40, pixels: blankPixels(40) }), /up to 4 drafts.*delete/i);
+  assert.equal(storage.data[DRAFTS_KEY], before);
+  await store.deleteDraft(saved[0].id);
+  await store.saveDraft({ size: 64, pixels: blankPixels(64) });
+  assert.equal((await store.listDrafts()).length, 4);
+});
+
+test('existing drafts above the limit stay accessible but cannot be added to', async () => {
+  const drafts = Array.from({ length: 5 }, (_, i) => ({ id: `old-${i}`, size: 25, pixels: blankPixels(25), savedAt: '2026-11-15T09:00:00.000Z' }));
+  const store = newStore({ storage: fakeStorage({ initial: { [DRAFTS_KEY]: JSON.stringify(drafts) } }) });
+  await assert.rejects(store.saveDraft({ size: 25, pixels: blankPixels(25) }), /up to 4 drafts/i);
+  assert.equal((await store.listDrafts()).length, 5);
+  assert.deepEqual(await store.loadDraft('old-0'), drafts[0]);
 });

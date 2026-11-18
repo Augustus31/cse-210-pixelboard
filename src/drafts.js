@@ -3,8 +3,8 @@
  *
  * This is the contract between the drafts column (our group) and the save/export group.
  * Today the drafts live in the browser's localStorage. Later the save/export group replaces
- * the inside of this file with PDS (AT Protocol) storage. The three exported API functions
- * (saveDraft, listDrafts, loadDraft) must keep their names, inputs, and results, so the UI
+ * the inside of this file with PDS (AT Protocol) storage. The exported API functions
+ * (saveDraft, listDrafts, loadDraft, deleteDraft) must keep their names, inputs, and results, so the UI
  * code does not need changes. They are async because a PDS version will use the network.
  *
  * On failure, each function rejects with an Error that has a readable `message`; the UI shows it.
@@ -21,6 +21,7 @@
 
 /** Separate from the teammate's auto-save key ('pixelboard-v1'), so drafts never touch it. */
 export const DRAFTS_KEY = 'pixelboard-drafts-v1';
+export const MAX_DRAFTS = 4;
 
 const CANVAS_SIZES = [25, 40, 64];
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -50,11 +51,11 @@ function isStorageFullError(error) {
  * @param {Storage|null} options.storage - Where drafts are kept (null when the browser blocks storage)
  * @param {() => Date} [options.now] - Gives the current time
  * @param {() => string} [options.createId] - Gives a new unique id
- * @returns {{saveDraft: Function, listDrafts: Function, loadDraft: Function}}
+ * @returns {{saveDraft: Function, listDrafts: Function, loadDraft: Function, deleteDraft: Function}}
  */
 export function createDraftStore({ storage, now = () => new Date(), createId = createRandomId }) {
   function requireStorage() {
-    if (!storage) throw new Error('Browser storage is not available, so drafts cannot be saved or opened here.');
+    if (!storage) throw new Error('Browser storage is not available, so drafts cannot be saved, opened, or deleted here.');
     return storage;
   }
 
@@ -80,12 +81,12 @@ export function createDraftStore({ storage, now = () => new Date(), createId = c
     return Array.isArray(saved) ? saved.filter(isValidDraft) : [];
   }
 
-  function writeAll(drafts) {
+  function writeAll(drafts, action = 'save') {
     try {
       requireStorage().setItem(DRAFTS_KEY, JSON.stringify(drafts));
     } catch (error) {
-      if (isStorageFullError(error)) throw new Error('Could not save the draft: browser storage is full. Download your drawing as a PNG to keep it.');
-      throw new Error(`Could not save the draft: ${error.message}`);
+      if (isStorageFullError(error)) throw new Error(`Could not ${action} the draft: browser storage is full. Download your drawing as a PNG to keep it.`);
+      throw new Error(`Could not ${action} the draft: ${error.message}`);
     }
   }
 
@@ -97,8 +98,11 @@ export function createDraftStore({ storage, now = () => new Date(), createId = c
   async function saveDraft({ size, pixels }) {
     if (!CANVAS_SIZES.includes(size)) throw new Error(`Draft size must be 25, 40, or 64 (got ${size}).`);
     if (!hasValidPixels(size, pixels)) throw new Error('Draft pixels must be size × size colors in #rrggbb form.');
+    // Enforce the limit in storage so every save path (including Save, then load) respects it.
+    const drafts = readAll();
+    if (drafts.length >= MAX_DRAFTS) throw new Error(`You can save up to ${MAX_DRAFTS} drafts. Delete a draft before saving another.`);
     const draft = { id: createId(), size, pixels: pixels.slice(), savedAt: now().toISOString() };
-    writeAll([draft, ...readAll()]);
+    writeAll([draft, ...drafts]);
     return { ...draft, pixels: draft.pixels.slice() };
   }
 
@@ -118,7 +122,20 @@ export function createDraftStore({ storage, now = () => new Date(), createId = c
     return readAll().find((draft) => draft.id === id) ?? null;
   }
 
-  return { saveDraft, listDrafts, loadDraft };
+  /**
+   * Removes only the draft with this id, leaving auto-save and other drafts intact.
+   * @param {string} id
+   * @returns {Promise<boolean>} True if deleted; false if the id was already absent.
+   */
+  async function deleteDraft(id) {
+    const drafts = readAll();
+    const remaining = drafts.filter((draft) => draft.id !== id);
+    if (remaining.length === drafts.length) return false;
+    writeAll(remaining, 'delete');
+    return true;
+  }
+
+  return { saveDraft, listDrafts, loadDraft, deleteDraft };
 }
 
 function browserStorage() {
@@ -160,4 +177,13 @@ export async function listDrafts() {
  */
 export async function loadDraft(id) {
   return defaultStore().loadDraft(id);
+}
+
+/**
+ * Deletes a saved draft from browser storage. Does not change the drawing on the canvas.
+ * @param {string} id
+ * @returns {Promise<boolean>} Whether a saved draft was removed
+ */
+export async function deleteDraft(id) {
+  return defaultStore().deleteDraft(id);
 }

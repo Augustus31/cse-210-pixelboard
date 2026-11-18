@@ -5,7 +5,7 @@
  * storage without changes here.
  * @module draftsColumn
  */
-import { saveDraft, listDrafts, loadDraft } from './drafts.js';
+import { saveDraft, listDrafts, loadDraft, deleteDraft, MAX_DRAFTS } from './drafts.js';
 import { pixelsToRgba, formatSavedAt, nextDraftSelection } from './draftDisplay.js';
 import { snapshotCanvas, hasUnsavedChanges } from './unsaved.js';
 import { askWithDialog } from './dialogs.js';
@@ -18,7 +18,7 @@ function drawThumbnail({ size, pixels }) {
   return thumbnail;
 }
 
-function createDraftItem(draft, onClick) {
+function createDraftItem(draft, onClick, onDelete) {
   const item = document.createElement('li');
   const button = document.createElement('button');
   button.type = 'button';
@@ -36,7 +36,18 @@ function createDraftItem(draft, onClick) {
   time.textContent = timeText;
   button.append(drawThumbnail(draft), sizeLabel, time);
   button.addEventListener('click', () => onClick(draft.id));
-  item.append(button);
+  // A sibling button keeps deleting separate from selecting/loading a draft.
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'draft-delete';
+  deleteButton.textContent = 'Delete';
+  deleteButton.setAttribute('aria-label', `Delete draft ${sizeText}, saved ${timeText}`);
+  deleteButton.addEventListener('click', async () => {
+    deleteButton.disabled = true;
+    try { await onDelete(draft.id); }
+    finally { deleteButton.disabled = false; }
+  });
+  item.append(button, deleteButton);
   return item;
 }
 
@@ -55,6 +66,7 @@ export function createDraftsColumn({ getCanvas, applyDraft, showStatus }) {
   const unsavedDialog = document.getElementById('unsaved-dialog');
   let drafts = [];
   let selectedId = null;
+  let baselineDraftId = null;
   let baseline = null; // null = blank canvas at page open (Spec 4.5.6).
 
   function showSelection() {
@@ -64,9 +76,31 @@ export function createDraftsColumn({ getCanvas, applyDraft, showStatus }) {
   }
 
   function showDrafts() {
-    listElement.replaceChildren(...drafts.map((draft) => createDraftItem(draft, onDraftClick)));
+    listElement.replaceChildren(...drafts.map((draft) => createDraftItem(draft, onDraftClick, onDraftDelete)));
     emptyHint.hidden = drafts.length > 0;
+    saveButton.disabled = drafts.length >= MAX_DRAFTS;
+    saveButton.textContent = `Save draft (${drafts.length}/${MAX_DRAFTS})`;
+    saveButton.title = drafts.length >= MAX_DRAFTS ? 'Delete a draft before saving another.' : 'Save the current canvas as a draft';
+    document.getElementById('draft-limit').textContent = drafts.length >= MAX_DRAFTS ? 'Draft limit reached. Delete a draft to save another.' : '';
     showSelection();
+  }
+
+  // Change the list only after storage succeeds; the current canvas stays untouched.
+  async function onDraftDelete(id) {
+    try {
+      const removed = await deleteDraft(id);
+      drafts = drafts.filter((draft) => draft.id !== id);
+      if (selectedId === id) selectedId = null;
+      // A deleted snapshot can no longer count as a saved copy of the current work.
+      if (baselineDraftId === id) {
+        baseline = null;
+        baselineDraftId = null;
+      }
+      showDrafts();
+      showStatus(removed ? 'Draft deleted.' : 'This draft no longer exists.');
+    } catch (error) {
+      showStatus(error.message);
+    }
   }
 
   // Returns true on success, so "Save, then load" can stop when the save fails.
@@ -76,6 +110,7 @@ export function createDraftsColumn({ getCanvas, applyDraft, showStatus }) {
       const draft = await saveDraft(getCanvas());
       drafts = [draft, ...drafts];
       baseline = snapshotCanvas(draft);
+      baselineDraftId = draft.id;
       showDrafts();
       showStatus(`Draft saved (${draft.size} × ${draft.size}).`);
       return true;
@@ -83,7 +118,7 @@ export function createDraftsColumn({ getCanvas, applyDraft, showStatus }) {
       showStatus(error.message);
       return false;
     } finally {
-      saveButton.disabled = false;
+      saveButton.disabled = drafts.length >= MAX_DRAFTS;
     }
   }
 
@@ -96,6 +131,7 @@ export function createDraftsColumn({ getCanvas, applyDraft, showStatus }) {
       }
       applyDraft(draft);
       baseline = snapshotCanvas(draft);
+      baselineDraftId = draft.id;
       showStatus(`Draft loaded (${draft.size} × ${draft.size}). Press Ctrl+Z to go back.`);
     } catch (error) {
       showStatus(error.message);
