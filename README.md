@@ -45,7 +45,7 @@ All three drawings and the selected size automatically save in this browser's lo
 
 ## Source
 
-- `src/main.js` connects the page: drawing, tools, history, and auto-save.
+- `src/pixelEditor.js` connects the page: drawing, tools, history, and auto-save.
 - Drawing: `src/pixels.js` (stroke interpolation so fast drags have no gaps, and cell color lookup), `src/brush.js` (brush footprint math), `src/brushPanel.js` and `src/brushOutline.js` (brush panel and hover outline).
 - Colors: `src/color.js` (HSV, RGB, and hex conversion, and alpha blending), `src/pickerGeometry.js`, `src/pickerDrawing.js`, `src/colorPicker.js`, `src/colorChannels.js` (the color picker), `src/colorSections.js` (remembers open sections), `src/numberInput.js`, `src/recentColors.js`, and `src/recentColorsRow.js`.
 - Drafts: `src/drafts.js` is the drafts API (`saveDraft`, `listDrafts`, `loadDraft`). Today it uses local storage; a later version can use the PDS without changes to the UI. `src/draftsColumn.js`, `src/dialogs.js`, `src/draftDisplay.js`, and `src/unsaved.js` build the drafts column.

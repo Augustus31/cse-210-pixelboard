@@ -36,7 +36,7 @@ test('Space plus arrows draws continuous strokes at every canvas size', async (t
     Object.defineProperty(globalThis, name, { value, configurable: true });
     t.after(() => descriptor ? Object.defineProperty(globalThis, name, descriptor) : delete globalThis[name]);
   }
-  await import('../src/main.js');
+  await import('../src/pixelEditor.js');
   const emit = (target, type, key, repeat = false) => {
     const event = new Event(type, { cancelable: true });
     Object.assign(event, { key, repeat });
