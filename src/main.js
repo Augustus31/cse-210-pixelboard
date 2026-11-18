@@ -60,7 +60,7 @@ function save() {
     drawings[size] = { pixels, undoStack, redoStack };
     const savedDrawings = Object.fromEntries(Object.entries(drawings).map(([resolution, drawing]) => [resolution, drawing.pixels]));
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ size, drawings: savedDrawings }));
-    $('save-status').textContent = 'Saved in this browser · just for you';
+    $('save-status').textContent = 'Saved locally.';
   } catch {
     $('save-status').textContent = 'Browser storage unavailable. Download to keep your drawing.';
   }
@@ -93,10 +93,6 @@ function selectTool(next) {
 function useColor(color, alpha) {
   selectedColor = color.toLowerCase();
   selectedAlpha = alpha;
-  $('color-preview-fill').style.background = selectedColor;
-  $('color-preview-fill').style.opacity = String(selectedAlpha / 100);
-  $('color-value').textContent = selectedColor.toUpperCase();
-  $('alpha-value').textContent = `${Math.round(selectedAlpha)}%`;
   document.querySelectorAll('.swatch').forEach((button) => {
     const selected = button.dataset.color === selectedColor;
     button.classList.toggle('selected', selected);
@@ -454,7 +450,6 @@ function updateCanvasSize() {
   document.querySelector('.canvas-wrap').style.setProperty('--pixel-count', size);
   canvas.setAttribute('aria-label', `${size} by ${size} drawing canvas. Drag to draw, or use arrow keys to move and Space to paint.`);
   $('canvas-size').value = String(size);
-  $('size-label').textContent = `${size} × ${size} canvas`;
   $('position').textContent = `${size} × ${size} pixels`;
   keyboardPoint = [0, 0];
   $('cursor').hidden = true;
