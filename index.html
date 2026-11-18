@@ -13,6 +13,13 @@
     <header class="site-header"><a class="brand" href="./">Pixelboard</a></header>
     <main>
       <div class="workspace">
+        <details class="card drafts-column" open>
+          <summary id="drafts-heading">Drafts</summary>
+          <button id="save-draft" class="primary" type="button">Save draft</button>
+          <p id="draft-limit" class="drafts-empty" role="status"></p>
+          <ul id="draft-list" class="draft-list" aria-label="Saved drafts, newest first"></ul>
+          <p id="drafts-empty" class="drafts-empty">No saved drafts.</p>
+        </details>
         <section class="drawing-panel" aria-label="Drawing workspace">
           <section class="editor-actions"><label class="size-control" for="canvas-size">Canvas size<select id="canvas-size"><option value="64">64 × 64</option><option value="40">40 × 40</option><option value="25">25 × 25</option></select></label><button id="download" class="primary"><svg class="control-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v11m-4-4 4 4 4-4M3 14v4h14v-4"/></svg><span>Download PNG</span></button></section>
           <div class="canvas-stage"><div class="canvas-wrap"><canvas id="drawing" width="64" height="64" tabindex="0" aria-label="64 by 64 drawing canvas. Drag to draw, or use arrow keys to move and Space to paint."></canvas><div id="grid-overlay" aria-hidden="true"></div><div id="cursor" hidden aria-hidden="true"></div><div id="brush-outline" hidden aria-hidden="true"><svg viewBox="0 0 64 64" preserveAspectRatio="none"><path class="outline-light" /><path class="outline-dark" /></svg></div></div></div>
@@ -25,7 +32,7 @@
           </div>
           <div class="canvas-footer"><span id="position">64 × 64 pixels</span><div class="zoom-controls"><button id="zoom-out" title="Zoom out">−</button><span id="zoom-value">100%</span><button id="zoom-in" title="Zoom in">+</button><button id="zoom-reset" title="Reset zoom"><svg class="control-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a7 7 0 1 1 0 5M3 3v5h5"/></svg></button></div></div>
         </section>
-        <aside aria-label="Colors and drafts">
+        <aside aria-label="Colors">
           <section class="card colors-card">
             <div class="section-heading"><h2>Colors</h2></div>
             <div class="recent-colors"><span id="recent-label" class="recent-label">Recently used</span><div id="recent-list" class="recent-list" role="group" aria-labelledby="recent-label"></div><p id="recent-empty" class="recent-empty">No recent colors.</p></div>
@@ -48,13 +55,6 @@
               <div id="palette" aria-label="Color palette"></div>
             </details>
           </section>
-        <details class="card drafts-column">
-          <summary id="drafts-heading">Drafts</summary>
-          <button id="save-draft" class="primary" type="button">Save draft</button>
-          <p id="draft-limit" class="drafts-empty" role="status"></p>
-          <ul id="draft-list" class="draft-list" aria-label="Saved drafts, newest first"></ul>
-          <p id="drafts-empty" class="drafts-empty">No saved drafts.</p>
-        </details>
         </aside>
       </div>
       <footer class="page-footer"><span id="save-status" role="status">Saved locally in this browser.</span></footer>
