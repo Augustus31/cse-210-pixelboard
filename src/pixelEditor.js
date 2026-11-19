@@ -10,13 +10,26 @@ import { createDraftsColumn } from './draftsColumn.js';
 import { createAccountMenu } from './accountMenu.js';
 // Stand-in login. Change only this line to './auth.js' when the real module is merged.
 import { initAuth, signIn, signOut } from './authStub.js';
+import {
+  canvas,
+  canvasWrap,
+  state,
+  MIN_SCALE,
+  MAX_SCALE,
+  ZOOM_SPEED,
+  updateTransform,
+  clampPan,
+  screenToCanvas,
+  pointFromEvent,
+  adjustScale,
+  resetZoom,
+  startPan,
+} from './zoom.js';
 
 const SIZES = [64, 40, 25];
 let size = 64;
 const STORAGE_KEY = 'pixelboard-v1';
-const canvas = document.querySelector('#drawing');
 const context = canvas.getContext('2d');
-const canvasWrap = document.querySelector('.canvas-wrap');
 const $ = (id) => document.getElementById(id);
 const colors = [
   '#292a35', '#62616e', '#a3a1ad', '#d1ced6', '#eeecf1', '#ffffff',
@@ -34,14 +47,6 @@ let tool = 'pencil';
 let lastPoint = null;
 let activePointer = null;
 let strokeBefore = null;
-// Pan & zoom state
-let scale = 1;
-let panX = 0;
-let panY = 0;
-let isPanning = false;
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 4;
-const ZOOM_SPEED = 0.005; // per wheel delta unit (trackpad deltas are smaller than mouse wheel)
 let keyboardPoint = [0, 0];
 let keyboardStrokeBefore = null;
 let undoStack = [], redoStack = [];
@@ -161,24 +166,6 @@ $('eraser').addEventListener('click', () => toggleBrushPanel('eraser'));
 $('eyedropper').addEventListener('click', () => selectTool('eyedropper'));
 $('grid').addEventListener('change', (event) => { $('grid-overlay').hidden = !event.target.checked; });
 
-// Apply the current pan & zoom as a CSS transform on the canvas wrapper.
-// The canvas keeps its logical resolution; only the visual display changes.
-function updateTransform() {
-  canvasWrap.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  $('zoom-value').textContent = `${Math.round(scale * 100)}%`;
-}
-// Convert a screen (client) coordinate to a canvas cell coordinate,
-// undoing the current pan & zoom transform.
-function screenToCanvas(clientX, clientY) {
-  const rect = canvas.getBoundingClientRect();
-  // rect is the post-transform screen box: left/top include pan, width/height include scale
-  const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
-  const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
-  return [Math.floor(canvasX), Math.floor(canvasY)];
-}
-function pointFromEvent(event) {
-  return screenToCanvas(event.clientX, event.clientY);
-}
 function currentBrushCells(x, y) {
   const { size: brushSize, shape } = brushSettings[tool];
   return cellsInsideCanvas(brushCells(x, y, brushSize, shape), size);
@@ -250,28 +237,16 @@ canvas.addEventListener('pointerleave', () => {
 // Prevents the page from scrolling while the pointer is over the canvas.
 canvas.addEventListener('wheel', (event) => {
   event.preventDefault();
-  const rect = canvas.getBoundingClientRect();
-  const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (1 - event.deltaY * ZOOM_SPEED)));
-  if (nextScale === scale) return;
-  // Relative position of the cursor within the canvas (0 to 1).
-  // We want this same relative position to stay under the cursor after zooming.
-  const relX = (event.clientX - rect.left) / rect.width;
-  const relY = (event.clientY - rect.top) / rect.height;
-  // Apply the new scale to the DOM.
-  scale = nextScale;
-  updateTransform();
-  const newRect = canvas.getBoundingClientRect();
-  // Adjust pan so the same relative point stays under the cursor.
-  panX += event.clientX - (newRect.left + relX * newRect.width);
-  panY += event.clientY - (newRect.top + relY * newRect.height);
-  updateTransform();
+
+  const nextScale = state.scale * (1 - event.deltaY * ZOOM_SPEED);
+
+  adjustScale(nextScale, event.clientX, event.clientY);
 }, { passive: false });
 
 // Panning: right-click drag.
 // Capture phase runs before the drawing listeners, so we can claim the gesture.
-let panStart = null;
 canvas.addEventListener('pointerdown', (event) => {
-  if (isPanning) return;
+  if (state.isPanning) return;
   if (event.button === 2) { // right button
     event.preventDefault();
     event.stopPropagation(); // don't open a context menu
@@ -279,32 +254,30 @@ canvas.addEventListener('pointerdown', (event) => {
   }
 }, { capture: true });
 
-function startPan(clientX, clientY) {
-  isPanning = true;
-  panStart = [clientX, clientY];
-  canvas.classList.add('panning');
-  canvas.style.cursor = 'grabbing';
-}
+// Prevent right-click context menu when panning.
+canvas.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
 
 // Track pan drags on the window so they continue off-canvas.
 window.addEventListener('pointermove', (event) => {
-  if (!isPanning || panStart === null) return;
-  panX += event.clientX - panStart[0];
-  panY += event.clientY - panStart[1];
-  panStart = [event.clientX, event.clientY];
-  updateTransform();
+  if (!state.isPanning || state.panStart === null) return;
+  state.panX += event.clientX - state.panStart[0];
+  state.panY += event.clientY - state.panStart[1];
+  state.panStart = [event.clientX, event.clientY];
+  clampPan();
 });
 window.addEventListener('pointerup', (event) => {
-  if (!isPanning) return;
-  isPanning = false;
-  panStart = null;
+  if (!state.isPanning) return;
+  state.isPanning = false;
+  state.panStart = null;
   canvas.classList.remove('panning');
   canvas.style.cursor = '';
 });
 window.addEventListener('pointercancel', () => {
-  if (!isPanning) return;
-  isPanning = false;
-  panStart = null;
+  if (!state.isPanning) return;
+  state.isPanning = false;
+  state.panStart = null;
   canvas.classList.remove('panning');
   canvas.style.cursor = '';
 });
@@ -337,50 +310,9 @@ $('download').addEventListener('click', () => {
   link.click();
 });
 // Zoom controls
-$('zoom-in').addEventListener('click', () => { adjustScale(scale * 1.2); });
-$('zoom-out').addEventListener('click', () => { adjustScale(scale / 1.2); });
+$('zoom-in').addEventListener('click', () => { adjustScale(state.scale * 1.2); });
+$('zoom-out').addEventListener('click', () => { adjustScale(state.scale / 1.2); });
 $('zoom-reset').addEventListener('click', () => { resetZoom(); });
-function adjustScale(next, anchorX = null, anchorY = null) {
-  next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
-  if (next === scale) return;
-  const rect = canvas.getBoundingClientRect();
-  // Where the anchor point is on screen BEFORE scaling (we want it to stay there).
-  let targetX, targetY;
-  if (anchorX !== null && anchorY !== null) {
-    targetX = anchorX;
-    targetY = anchorY;
-  } else {
-    // Zoom from center of the canvas (before scale changes)
-    targetX = rect.left + rect.width / 2;
-    targetY = rect.top + rect.height / 2;
-  }
-  // Relative position of the anchor point within the canvas (0 to 1).
-  let relX, relY;
-  if (anchorX !== null && anchorY !== null) {
-    relX = (anchorX - rect.left) / rect.width;
-    relY = (anchorY - rect.top) / rect.height;
-  } else {
-    relX = 0.5;
-    relY = 0.5;
-  }
-  // Apply the new scale to the DOM.
-  scale = next;
-  updateTransform();
-  const newRect = canvas.getBoundingClientRect();
-  // Where is that same relative point now (with unchanged pan)?
-  const currentAnchorX = newRect.left + relX * newRect.width;
-  const currentAnchorY = newRect.top + relY * newRect.height;
-  // Adjust pan so the anchor stays at its pre-scale screen position.
-  panX += targetX - currentAnchorX;
-  panY += targetY - currentAnchorY;
-  updateTransform();
-}
-function resetZoom() {
-  scale = 1;
-  panX = 0;
-  panY = 0;
-  updateTransform();
-}
 
 // Holding Space makes arrow movement a single continuous, undoable drawing stroke.
 function finishKeyboardStroke() {
@@ -442,15 +374,15 @@ document.addEventListener('keydown', (event) => {
     if (key === 'e') selectTool('eraser');
     if (key === 'i') selectTool('eyedropper');
     if (key === '0') { event.preventDefault(); resetZoom(); }
-    if (key === '-') { event.preventDefault(); adjustScale(scale / 1.2); }
-    if (key === '=' || key === '+') { event.preventDefault(); adjustScale(scale * 1.2); }
+    if (key === '-') { event.preventDefault(); adjustScale(state.scale / 1.2); }
+    if (key === '=' || key === '+') { event.preventDefault(); adjustScale(state.scale * 1.2); }
   }
 });
 
 // Resizing switches between independent drawings, so choosing a smaller canvas loses no artwork.
 function updateCanvasSize() {
   canvas.width = canvas.height = size;
-  document.querySelector('.canvas-wrap').style.setProperty('--pixel-count', size);
+  canvasWrap.style.setProperty('--pixel-count', size);
   canvas.setAttribute('aria-label', `${size} by ${size} drawing canvas. Drag to draw, or use arrow keys to move and Space to paint.`);
   $('canvas-size').value = String(size);
   $('position').textContent = `${size} × ${size} pixels`;
@@ -513,4 +445,5 @@ try {
 } catch { /* Storage may be disabled or contain invalid JSON; start with a white canvas. */ }
 selectColor(selectedColor);
 updateCanvasSize();
-updateTransform();
+resetZoom();
+
