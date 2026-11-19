@@ -95,3 +95,17 @@ export async function signOut() {
   if (s) await s.signOut();
 }
 
+/**
+ * Retrieve user's DID
+ */
+export function currentDid() {
+  return session ? session.did : null;
+}
+
+/**
+ * Fetch the user's PDS.
+ */
+export async function authFetch(path, init) {
+  if (!session) throw new Error('Not signed in.');
+  return session.fetchHandler(path, init);
+}
