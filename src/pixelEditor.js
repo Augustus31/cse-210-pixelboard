@@ -217,7 +217,7 @@ canvas.addEventListener('pointerdown', (event) => {
   paint(lastPoint, lastPoint, strokeBefore);
 });
 canvas.addEventListener('pointermove', (event) => {
-  if (isPanning) return;
+  if (state.isPanning) return;
   const point = pointFromEvent(event);
   $('position').textContent = `${Math.max(0, Math.min(size - 1, point[0]))}, ${Math.max(0, Math.min(size - 1, point[1]))} · ${size} × ${size}`;
   if (event.pointerId !== activePointer) return updateBrushOutline(point);
@@ -246,14 +246,12 @@ canvas.addEventListener('wheel', (event) => {
 // Panning: right-click drag.
 // Capture phase runs before the drawing listeners, so we can claim the gesture.
 canvas.addEventListener('pointerdown', (event) => {
-  if (state.isPanning) return;
-  if (event.button === 2) { // right button
-    event.preventDefault();
-    event.stopPropagation(); // don't open a context menu
-    startPan(event.clientX, event.clientY);
-  }
+  if (event.button !== 2) return;
+  event.preventDefault();
+  event.stopPropagation();
+  canvas.setPointerCapture(event.pointerId);
+  startPan(event.clientX, event.clientY);
 }, { capture: true });
-
 // Prevent right-click context menu when panning.
 canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault();
