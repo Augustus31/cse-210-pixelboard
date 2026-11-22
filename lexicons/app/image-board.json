@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "app.image-board",
+  "id": "cloud.pixelboard.imageBoard", 
   "defs": {
     "main": {
       "type": "record",
