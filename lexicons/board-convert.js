@@ -1,3 +1,5 @@
+/* global document, Blob, createImageBitmap */
+
 const COLLECTION = 'cloud.pixelboard.imageBoard';
 const MAX_SIZE = 512;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -29,7 +31,9 @@ function validateBoard(pixels, size) {
  * Creates a square canvas element of the given size.
  */
 function canvasForSize(size) {
-  if (typeof document === 'undefined') throw new Error('Pixel board conversion requires a browser canvas.');
+  if (typeof document === 'undefined') {
+    throw new Error('Pixel board conversion requires a browser canvas.');
+  }
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   return canvas;
