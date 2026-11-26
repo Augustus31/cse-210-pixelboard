@@ -9,7 +9,26 @@ Install [Node.js](https://nodejs.org) 24 or newer, then run:
 npm install
 ```
 
-Currently Node is only used to run development tools.
+## Theme server
+
+Start the backend with:
+
+```sh
+node backend/server.js
+```
+
+`GET http://127.0.0.1:3000/api/theme` returns JSON such as `{"theme":"Space"}`.
+The server selects a random theme on startup and changes it every 24 hours. Restarting
+the server resets the timer and the list of used themes.
+There is no editor on this branch to request or display the theme yet.
+
+`POST http://127.0.0.1:3000/api/submit` accepts a JSON body with an AT URI `boardLink` string:
+
+```json
+{ "boardLink": "at://did:example:alice/cloud.pixelboard.imageBoard/example" }
+```
+
+The server keeps the most recently submitted link in memory and returns it as `boardLink`.
 
 ## Commands
 
