@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# Auto runs when a commit is made, to check the header formating
+
+# exclude the merge message from the check
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+  exit 0
+fi
+
+# check the header against the rules in check-messages.js
+head -n 1 "$1" | node .github/scripts/check-messages.js

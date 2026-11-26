@@ -4,3 +4,7 @@ dist/
 
 .agent/qa/
 .agent/
+
+# vim files
+*.swp
+tags
