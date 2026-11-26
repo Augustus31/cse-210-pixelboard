@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "cloud.pixelboard.imageBoard", 
+  "id": "cloud.pixelboard.imageBoard",
   "defs": {
     "main": {
       "type": "record",
@@ -28,6 +28,16 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 512
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Time this drawing was first saved."
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Time this drawing was last updated."
           }
         }
       }
