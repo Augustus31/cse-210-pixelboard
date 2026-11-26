@@ -1,251 +1,194 @@
-import test from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createPdsImageStore, timeFromRecordKey } from "./pdsImageStore.js";
+import { BOARD_COLLECTION } from "./oauthAgent.js";
 
-const collection = "org.example.board";
-const did = "did:plc:owner";
-const drawing = (size = 25, color = "#ffffff") => ({
-  size,
-  pixels: Array(size * size).fill(color),
+// Canvas primitives are test doubles. Production calls the actual Lexicon functions.
+const previousDocument = globalThis.document;
+const previousBitmap = globalThis.createImageBitmap;
+before(() => {
+  globalThis.document = { createElement: () => {
+    let bytes;
+    const canvas = { width: 0, height: 0 };
+    canvas.getContext = () => ({
+      createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+      putImageData: (image) => { bytes = [...image.data]; },
+      drawImage: (bitmap) => { bytes = bitmap.bytes; },
+      getImageData: () => ({ data: bytes }),
+    });
+    canvas.toBlob = (callback) => callback(new globalThis.Blob([
+      JSON.stringify({ width: canvas.width, height: canvas.height, bytes }),
+    ], { type: "image/png" }));
+    return canvas;
+  } };
+  globalThis.createImageBitmap = async (blob) => ({
+    ...JSON.parse(await blob.text()), close() {},
+  });
 });
-const json = (data, status = 200) => new globalThis.Response(JSON.stringify(data), { status });
-const uri = (id) => `at://${did}/${collection}/${id}`;
-const base32 = "234567abcdefghijklmnopqrstuvwxyz";
-function tid(micros) {
-  let value = BigInt(micros) << 10n;
-  let result = "";
-  for (let i = 0; i < 13; i++) {
-    result = base32[Number(value & 31n)] + result;
-    value >>= 5n;
-  }
-  return result;
-}
+after(() => {
+  if (previousDocument === undefined) delete globalThis.document;
+  else globalThis.document = previousDocument;
+  if (previousBitmap === undefined) delete globalThis.createImageBitmap;
+  else globalThis.createImageBitmap = previousBitmap;
+});
 
-function fixture({ intercept, pageSize = 100 } = {}) {
+function fixture({ pageSize = 100, intercept } = {}) {
+  const owner = "did:plc:owner";
+  let did = owner;
+  let time = "2026-11-26T12:00:00.000Z";
+  let sequence = 0;
   const records = new Map();
   const blobs = new Map();
   const calls = [];
-  let current = did;
-  let sequence = 0;
-  const codec = {
-    encode: async (canvas) => new globalThis.Blob([JSON.stringify(canvas)], { type: "image/png" }),
-    decode: async (blob) => JSON.parse(await blob.text()),
-  };
+  const json = (value, status = 200) => new globalThis.Response(JSON.stringify(value), { status });
   const authFetch = async (path, init) => {
     const url = new globalThis.URL(path, "https://pds.example");
     const method = url.pathname.split(".").at(-1);
     const body = typeof init.body === "string" ? JSON.parse(init.body) : init.body;
     calls.push({ method, body, url });
-    const intercepted = await intercept?.({ method, body, url });
-    if (intercepted) return intercepted;
-    assert.equal(url.searchParams.get("repo") ?? body?.repo ?? did, did);
+    const response = await intercept?.({ method, body, json });
+    if (response) return response;
     if (method === "uploadBlob") {
       assert.equal(init.headers["Content-Type"], "image/png");
       const cid = `blob-${++sequence}`;
       blobs.set(cid, body);
-      return json({
-        blob: { $type: "blob", ref: { $link: cid }, mimeType: "image/png", size: body.size },
-      });
+      return json({ blob: {
+        $type: "blob", ref: { $link: cid }, mimeType: "image/png", size: body.size,
+      } });
     }
     if (method === "createRecord" || method === "putRecord") {
-      const id = body.rkey ?? tid(1795000000000000n + BigInt(++sequence));
-      if (body.swapRecord) assert.equal(records.get(id).cid, body.swapRecord);
-      const entry = { uri: uri(id), cid: `record-${++sequence}`, value: body.record };
+      assert.equal(body.repo, owner);
+      assert.equal(body.collection, BOARD_COLLECTION);
+      assert.equal(body.record.$type, BOARD_COLLECTION);
+      const id = body.rkey ?? `drawing-${++sequence}`;
+      if (body.swapRecord) assert.equal(body.swapRecord, records.get(id)?.cid);
+      const entry = {
+        uri: `at://${owner}/${BOARD_COLLECTION}/${id}`,
+        cid: `record-${++sequence}`, value: body.record,
+      };
       records.set(id, entry);
       return json({ uri: entry.uri, cid: entry.cid });
     }
     if (method === "listRecords") {
-      const offset = Number(url.searchParams.get("cursor") ?? 0);
+      const start = Number(url.searchParams.get("cursor") ?? 0);
       const all = [...records.values()];
-      const end = offset + pageSize;
-      return json({
-        records: all.slice(offset, end),
-        ...(end < all.length ? { cursor: String(end) } : {}),
-      });
+      return json({ records: all.slice(start, start + pageSize),
+        ...(start + pageSize < all.length ? { cursor: String(start + pageSize) } : {}) });
     }
     if (method === "getRecord") {
-      const entry = records.get(url.searchParams.get("rkey"));
-      return entry ? json(entry) : json({ error: "RecordNotFound" }, 400);
+      return records.has(url.searchParams.get("rkey"))
+        ? json(records.get(url.searchParams.get("rkey"))) : json({ error: "RecordNotFound" }, 400);
     }
     if (method === "getBlob") {
-      assert.equal(url.searchParams.get("did"), did);
-      return new globalThis.Response(blobs.get(url.searchParams.get("cid")));
+      const blob = blobs.get(url.searchParams.get("cid"));
+      return blob ? new globalThis.Response(blob) : json({ error: "BlobNotFound" }, 404);
     }
     if (method === "deleteRecord") {
+      assert.equal(body.swapRecord, records.get(body.rkey).cid);
       records.delete(body.rkey);
       return json({});
     }
-    throw new Error(`Unexpected request: ${method}`);
+    throw new Error(`Unexpected endpoint ${method}`);
   };
   const store = createPdsImageStore({
-    authFetch,
-    currentDid: () => current,
-    collection,
-    codec,
+    authFetch, currentDid: () => did, now: () => new Date(time),
   });
-  return {
-    store,
-    calls,
-    records,
-    blobs,
-    authFetch,
-    codec,
-    setAccount: (value) => {
-      current = value;
-    },
-  };
+  return { store, calls, records, setDid: (value) => { did = value; },
+    setTime: (value) => { time = value; } };
 }
-
-test("requires auth and a valid NSID; rejects the invalid proposal", () => {
-  assert.throws(() => createPdsImageStore({}), /authFetch/);
-  for (const invalid of [undefined, "app.image-board", "org.example.image-board", "-a.b.c"]) {
-    assert.throws(
-      () =>
-        createPdsImageStore({
-          authFetch() {},
-          currentDid() {},
-          collection: invalid,
-        }),
-      /Lexicon/,
-    );
-  }
+const drawing = (size = 25, color = "#123456") => ({
+  size, pixels: Array(size * size).fill(color),
 });
 
-test("TID creation times are deterministic and non-TID keys use a stable fallback", () => {
-  const millis = Date.parse("2026-11-18T12:00:00Z");
-  assert.equal(timeFromRecordKey(tid(BigInt(millis) * 1000n)), new Date(millis).toISOString());
-  assert.equal(timeFromRecordKey("legacy-key"), "1970-01-01T00:00:00.000Z");
-});
-
-for (const size of [25, 40, 64]) {
-  test(`PNG round trip at ${size} × ${size} uses the proposed fields`, async () => {
+for (const size of [25, 40, 64, 512]) {
+  test(`shared Lexicon helpers save and restore ${size} square pixels`, async () => {
     const f = fixture();
-    const input = drawing(size, "#123456");
-    const pending = f.store.saveDraft(input);
-    input.pixels[0] = "#000000";
-    const saved = await pending;
-    assert.equal(saved.pixels[0], "#123456");
-    const value = f.records.get(saved.id).value;
-    assert.deepEqual(Object.keys(value).sort(), ["$type", "height", "image", "width"]);
-    assert.equal(value.width, size);
-    assert.deepEqual(await f.store.loadDraft(saved.id), saved);
-    assert.deepEqual(await f.store.listDrafts(), [saved]);
-    assert.ok(f.calls.some((call) => call.method === "uploadBlob"));
-    assert.ok(f.calls.some((call) => call.method === "getBlob"));
+    const saved = await f.store.saveDraft(drawing(size));
+    assert.match(saved.uri, /^at:\/\/did:plc:owner\/cloud\.pixelboard\.imageBoard\//);
+    assert.equal(saved.savedAt, "2026-11-26T12:00:00.000Z");
+    assert.deepEqual((await f.store.loadDraft(saved.id)).pixels, drawing(size).pixels);
   });
 }
 
-test("update keeps the record key; deletion leaves other works intact", async () => {
-  const f = fixture();
+test("updates preserve creation time and identity; list sorts by last saved time", async () => {
+  const f = fixture({ pageSize: 1 });
   const first = await f.store.saveDraft(drawing());
-  const other = await f.store.saveDraft(drawing(40));
+  f.setTime("2026-11-26T13:00:00.000Z");
+  const second = await f.store.saveDraft(drawing(40));
+  f.setTime("2026-11-26T14:00:00.000Z");
   const updated = await f.store.updateDraft(first.id, drawing(64, "#abcdef"));
-  assert.equal(updated.id, first.id);
-  assert.equal(f.records.size, 2);
-  assert.ok(f.calls.find((call) => call.method === "putRecord").body.swapRecord);
-  assert.deepEqual(await f.store.loadDraft(first.id), updated);
+  assert.equal(updated.uri, first.uri);
+  assert.equal(f.records.get(first.id).value.createdAt, first.savedAt);
+  assert.equal(f.records.get(first.id).value.updatedAt, updated.savedAt);
+  assert.deepEqual((await f.store.listDrafts()).map((item) => item.id), [first.id, second.id]);
   assert.equal(await f.store.deleteDraft(first.id), true);
   assert.equal(await f.store.loadDraft(first.id), null);
   assert.equal(await f.store.deleteDraft(first.id), false);
-  assert.deepEqual(await f.store.loadDraft(other.id), other);
+  assert.equal(f.records.size, 1);
 });
 
-test("four-draft limit allows updates and frees a slot after deletion", async () => {
+test("legacy records without timestamps still load", async () => {
   const f = fixture();
-  for (let i = 0; i < 4; i++) await f.store.saveDraft(drawing());
-  const uploads = f.blobs.size;
-  await assert.rejects(f.store.saveDraft(drawing()), /up to 4/);
-  assert.equal(f.blobs.size, uploads);
-  const first = [...f.records.keys()][0];
-  await f.store.updateDraft(first, drawing(40));
-  await f.store.deleteDraft(first);
-  await f.store.saveDraft(drawing(64));
+  const saved = await f.store.saveDraft(drawing());
+  delete f.records.get(saved.id).value.createdAt;
+  delete f.records.get(saved.id).value.updatedAt;
+  assert.equal((await f.store.loadDraft(saved.id)).savedAt, new Date(0).toISOString());
+  assert.equal(timeFromRecordKey("legacy"), new Date(0).toISOString());
+});
+
+test("snapshot limit blocks new saves but allows updates and deletion", async () => {
+  const f = fixture();
+  let saved;
+  for (let i = 0; i < 4; i++) saved = await f.store.saveDraft(drawing());
+  await assert.rejects(f.store.saveDraft(drawing()), /Delete a draft/);
+  await f.store.updateDraft(saved.id, drawing(40));
+  await f.store.deleteDraft(saved.id);
+  await f.store.saveDraft(drawing());
   assert.equal(f.records.size, 4);
 });
 
-test("pagination reads every page and skips malformed records", async () => {
-  const f = fixture({ pageSize: 1 });
-  await f.store.saveDraft(drawing());
-  await f.store.saveDraft(drawing(40));
-  f.records.set("broken", { uri: uri("broken"), value: {} });
-  const listed = await f.store.listDrafts();
-  assert.equal(listed.length, 2);
-  assert.ok(listed[0].id > listed[1].id);
-});
-
-test("signed-out and invalid inputs never make a network request", async () => {
+test("invalid pixels, unsupported dimensions and signed-out sessions cannot write", async () => {
   const f = fixture();
-  await assert.rejects(f.store.saveDraft(drawing(30)), /size/);
-  await assert.rejects(f.store.loadDraft("../other"), /Invalid/);
-  f.setAccount(null);
-  for (const run of [
-    f.store.listDrafts,
-    () => f.store.saveDraft(drawing()),
-    () => f.store.loadDraft("one"),
-    () => f.store.updateDraft("one", drawing()),
-    () => f.store.deleteDraft("one"),
-  ])
-    await assert.rejects(run(), /Sign in/);
+  for (const input of [drawing(513), { size: 25, pixels: Array(625) }, drawing(25, "wrong")]) {
+    await assert.rejects(f.store.saveDraft(input), /Drawings require/);
+  }
+  f.setDid(null);
+  await assert.rejects(f.store.listDrafts(), /Sign in/);
   assert.equal(f.calls.length, 0);
 });
 
-test("account changes during upload stop repository writes", async () => {
-  const f = fixture({
-    intercept: ({ method }) => {
-      if (method === "uploadBlob") f.setAccount("did:plc:other");
-    },
-  });
+test("an account switch during upload stops record creation", async () => {
+  let f;
+  f = fixture({ intercept: ({ method }) => {
+    if (method === "uploadBlob") f.setDid("did:plc:other");
+  } });
   await assert.rejects(f.store.saveDraft(drawing()), /account changed/);
-  assert.equal(f.records.size, 0);
+  assert.equal(f.calls.some((call) => call.method === "createRecord"), false);
 });
 
-test("failed uploads and record writes do not report success or retry", async () => {
-  for (const failedMethod of ["uploadBlob", "createRecord"]) {
-    const f = fixture({
-      intercept: ({ method }) =>
-        method === failedMethod ? json({ error: "Unavailable" }, 503) : null,
-    });
-    await assert.rejects(f.store.saveDraft(drawing()), /HTTP 503/);
+for (const [status, error, message] of [
+  [403, "Forbidden", /access denied/], [429, "RateLimit", /request limit/],
+  [400, "InvalidSwap", /changed/], [413, "BlobTooLarge", /HTTP 413/],
+]) {
+  test(`HTTP ${status} rejects without false success or automatic retries`, async () => {
+    const f = fixture({ intercept: ({ method, json }) => method === "uploadBlob"
+      ? json({ error }, status) : undefined });
+    await assert.rejects(f.store.saveDraft(drawing()), message);
+    assert.equal(f.calls.filter((call) => call.method === "uploadBlob").length, 1);
     assert.equal(f.records.size, 0);
-    assert.equal(f.calls.filter((call) => call.method === failedMethod).length, 1);
-  }
-});
-
-test("permissions, rate limits and unreadable responses have readable errors", async () => {
-  for (const [status, pattern] of [
-    [403, /denied/],
-    [429, /limit/],
-    [500, /HTTP 500/],
-  ]) {
-    const f = fixture({ intercept: () => json({ error: "Failure" }, status) });
-    await assert.rejects(f.store.listDrafts(), pattern);
-  }
-  const f = fixture({ intercept: () => new globalThis.Response("not JSON") });
-  await assert.rejects(f.store.listDrafts(), /unreadable/);
-});
-
-test("missing updates reject; BlobNotFound is a loading failure", async () => {
-  const f = fixture({
-    intercept: ({ method }) => (method === "getBlob" ? json({ error: "BlobNotFound" }, 404) : null),
   });
-  await assert.rejects(f.store.updateDraft("missing", drawing()), /no longer exists/);
-  const saved = await f.store.saveDraft(drawing());
-  await assert.rejects(f.store.loadDraft(saved.id), /HTTP 404/);
+}
+
+test("missing records and missing PNG data have distinct results", async () => {
+  const f = fixture({ intercept: ({ method, json }) => method === "getBlob"
+    ? json({ error: "BlobNotFound" }, 404) : undefined });
+  assert.equal(await f.store.loadDraft("absent"), null);
+  await assert.rejects(f.store.updateDraft("absent", drawing()), /no longer exists/);
+  await assert.rejects(f.store.saveDraft(drawing()), /getBlob failed/);
 });
 
-test("repeated pagination cursors and wrong-record responses reject", async () => {
-  const repeated = fixture({ intercept: () => json({ records: [], cursor: "same" }) });
-  await assert.rejects(repeated.store.listDrafts(), /pagination/);
-  const wrong = fixture({ intercept: () => json({ uri: uri("other"), value: {} }) });
-  await assert.rejects(wrong.store.loadDraft("one"), /different drawing/);
-});
-
-test("stale updates reject without overwriting changed work", async () => {
-  const f = fixture({
-    intercept: ({ method }) =>
-      method === "putRecord" ? json({ error: "InvalidSwap" }, 400) : null,
-  });
-  const saved = await f.store.saveDraft(drawing());
-  await assert.rejects(f.store.updateDraft(saved.id, drawing(40)), /Reload before saving/);
-  assert.equal(f.records.get(saved.id).value.width, 25);
+test("repeated pagination cursors reject instead of looping", async () => {
+  const f = fixture({ intercept: ({ method, json }) => method === "listRecords"
+    ? json({ records: [], cursor: "repeat" }) : undefined });
+  await assert.rejects(f.store.listDrafts(), /pagination cursor/);
 });

@@ -4,7 +4,7 @@ import { createPdsImageStore } from "./pdsImageStore.js";
  * Connects PNG storage to the OAuth owner's session and authenticated fetch helpers.
  * Initializes OAuth before accessing the DID; never substitutes a local login or store.
  * @param {object} options - Storage settings passed to createPdsImageStore.
- * @param {string} options.collection - The valid NSID agreed with the Lexicon team.
+ * @param {string} [options.collection] - Defaults to cloud.pixelboard.imageBoard.
  * @param {Function} loadAuth - Loads the OAuth module supplied by the integrating frontend.
  * @returns {Promise<object>} The PDS save, list, load, update, and delete API.
  */

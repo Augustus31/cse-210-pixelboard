@@ -1,298 +1,188 @@
-/** PDS persistence for the Lexicon group's whole-canvas PNG Blob record proposal. */
-import { createPngCodec, snapshotDrawing } from "./pngCodec.js";
+import { saveBoard, loadBoard, updateBoard } from "../../lexicons/board-convert.js";
+import { BOARD_COLLECTION, createOAuthAgent } from "./oauthAgent.js";
+import { timeFromRecordKey } from "./recordTime.js";
+export { timeFromRecordKey } from "./recordTime.js";
 
-const NSID = /^[a-zA-Z][a-zA-Z0-9-]*(\.[a-zA-Z0-9][a-zA-Z0-9-]*)+\.[a-zA-Z][a-zA-Z0-9]*$/;
 const RKEY = /^(?!\.{1,2}$)[a-zA-Z0-9._~:-]{1,512}$/;
-const BASE32 = "234567abcdefghijklmnopqrstuvwxyz";
+const HEX = /^#[0-9a-f]{6}$/i;
+const validTime = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
 
 /**
- * Reads a creation time from a TID when the proposed record has no timestamp field.
- * @param {string} id - The record key assigned by the PDS.
- * @returns {string} The ISO creation time, or the epoch for a non-TID legacy key.
- */
-export function timeFromRecordKey(id) {
-  if (!/^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/.test(id)) {
-    return new Date(0).toISOString();
-  }
-  let value = 0n;
-  for (const character of id) value = value * 32n + BigInt(BASE32.indexOf(character));
-  const millis = Number((value >> 10n) / 1000n);
-  return new Date(millis).toISOString();
-}
-
-/**
- * Creates the frontend's storage API using PNG Blob records and authenticated requests.
- * No collection is guessed: the team's approved, valid NSID must be configured.
- * @param {object} options - Injected auth and encoding dependencies.
- * @param {Function} options.authFetch - Authenticated requests to the user's PDS.
- * @param {Function} options.currentDid - The current DID, or null when signed out.
- * @param {string} options.collection - The agreed record collection.
- * @param {{encode: Function, decode: Function}} [options.codec] - Browser PNG conversion.
- * @param {number} [options.maxDrafts=4] - The latest frontend's snapshot limit.
- * @param {number} [options.maxBlobBytes=1000000] - Client-side image download/upload cap.
- * @returns {{saveDraft: Function, listDrafts: Function, loadDraft: Function,
- * updateDraft: Function, deleteDraft: Function}} The frontend storage API.
+ * Connects the existing drafts API to Lexicon helpers and Miguel's OAuth session.
+ * PNG conversion and save/load/update are delegated to board-convert.js.
+ * @param {object} options - Storage dependencies and limits.
+ * @param {Function} options.authFetch - Miguel's authenticated PDS fetch helper.
+ * @param {Function} options.currentDid - Miguel's current DID helper.
+ * @param {string} [options.collection] - Must match the merged Lexicon collection.
+ * @param {number} [options.maxDrafts=4] - Existing frontend snapshot limit.
+ * @param {Function} [options.now] - Clock for createdAt and updatedAt.
+ * @returns {object} The save, list, load, update, and delete drafts API.
  */
 export function createPdsImageStore({
-  authFetch,
-  currentDid,
-  collection,
-  codec = createPngCodec(),
-  maxDrafts = 4,
-  maxBlobBytes = 1000000,
+  authFetch, currentDid, collection = BOARD_COLLECTION, maxDrafts = 4,
+  now = () => new Date(),
 }) {
-  if (typeof authFetch !== "function" || typeof currentDid !== "function") {
-    throw new Error("PDS storage requires authFetch and currentDid.");
+  if (collection !== BOARD_COLLECTION) {
+    throw new Error(`Use the Lexicon collection ${BOARD_COLLECTION}.`);
   }
-  if (
-    typeof collection !== "string" ||
-    !NSID.test(collection) ||
-    collection.length > 317 ||
-    collection.split(".").some((part) => part.length > 63 || part.endsWith("-"))
-  ) {
-    throw new Error("Configure a valid collection NSID approved by the Lexicon team.");
-  }
-
-  function account() {
-    const did = currentDid();
-    if (typeof did !== "string" || !did.startsWith("did:")) {
-      throw new Error("Sign in before saving or opening PDS drawings.");
-    }
-    return did;
-  }
-
-  function sameAccount(did) {
-    if (currentDid() !== did) throw new Error("Your account changed. Reload the drawings.");
-  }
-
-  function validateId(id) {
-    if (typeof id !== "string" || !RKEY.test(id)) throw new Error("Invalid drawing id.");
-  }
-
-  function keyFromUri(uri, did) {
+  if (!Number.isInteger(maxDrafts) || maxDrafts < 1) throw new Error("Invalid draft limit.");
+  // Validate auth dependencies at construction without requiring a signed-in session yet.
+  createOAuthAgent({ authFetch, currentDid });
+  const idFromUri = (uri, did) => {
     const prefix = `at://${did}/${collection}/`;
-    if (typeof uri !== "string" || !uri.startsWith(prefix)) return null;
-    const id = uri.slice(prefix.length);
-    return RKEY.test(id) ? id : null;
+    if (typeof uri !== "string" || !uri.startsWith(prefix)
+      || !RKEY.test(uri.slice(prefix.length))) {
+      throw new Error("PDS returned an invalid drawing URI.");
+    }
+    return uri.slice(prefix.length);
+  };
+  const validateId = (id) => {
+    if (typeof id !== "string" || !RKEY.test(id)) throw new Error("Invalid drawing id.");
+  };
+  function snapshot({ size, pixels } = {}) {
+    if (!Number.isInteger(size) || size < 1 || size > 512 || !Array.isArray(pixels)
+      || pixels.length !== size * size
+      || !Array.from(pixels).every((p) => typeof p === "string" && HEX.test(p))) {
+      throw new Error("Drawings require size 1–512 and size × size #rrggbb pixels.");
+    }
+    return { size, pixels: pixels.slice() };
   }
-
-  /**
-   * Sends JSON or binary XRPC data and checks identity before accepting a response.
-   * @param {string} endpoint - The repository or sync endpoint name.
-   * @param {string} did - The account that started this operation.
-   * @param {object} [options] - Query, body, binary, and missing-record options.
-   * @returns {Promise<object|Blob|null>} The validated response envelope or image bytes.
-   */
-  async function request(endpoint, did, { query, body, binary, missing = false } = {}) {
-    sameAccount(did);
-    const suffix = query ? `?${new globalThis.URLSearchParams(query)}` : "";
-    const init =
-      body === undefined
-        ? { method: "GET" }
-        : {
-            method: "POST",
-            headers: {
-              "Content-Type": body instanceof globalThis.Blob ? "image/png" : "application/json",
-            },
-            body: body instanceof globalThis.Blob ? body : JSON.stringify(body),
-          };
-    let response;
+  function agentFor(existing) {
+    const time = now().toISOString();
+    return createOAuthAgent({ authFetch, currentDid, prepareWrite: (body) => ({
+      ...body,
+      ...(existing?.cid ? { swapRecord: existing.cid } : {}),
+      record: {
+        ...body.record,
+        createdAt: validTime(existing?.value?.createdAt) ? existing.value.createdAt
+          : existing ? timeFromRecordKey(existing.id) : time,
+        updatedAt: time,
+      },
+    }) });
+  }
+  function checkEntry(entry, did) {
+    const id = idFromUri(entry?.uri, did);
+    const value = entry?.value;
+    if (value?.$type !== collection || !Number.isInteger(value.width)
+      || value.width < 1 || value.width > 512 || value.height !== value.width
+      || value.image?.mimeType !== "image/png" || !value.image.ref?.$link) {
+      throw new Error("Unsupported or damaged PDS drawing record.");
+    }
+    return id;
+  }
+  async function getEntry(agent, id) {
+    validateId(id);
     try {
-      response = await authFetch(`/xrpc/com.atproto.${endpoint}${suffix}`, init);
-    } catch (cause) {
-      throw new Error("Could not reach your PDS. Check your connection and sign-in.", { cause });
-    }
-    sameAccount(did);
-    if (response.ok && binary) {
-      const length = Number(response.headers.get("Content-Length"));
-      if (length > maxBlobBytes) throw new Error("The saved PNG exceeds the image size limit.");
-      const blob = await response.blob();
-      sameAccount(did);
-      if (blob.size > maxBlobBytes) throw new Error("The saved PNG exceeds the image size limit.");
-      return blob;
-    }
-    let data;
-    try {
-      data = await response.json();
-    } catch (cause) {
-      throw new Error(`PDS returned an unreadable response (HTTP ${response.status}).`, { cause });
-    }
-    sameAccount(did);
-    if (!response.ok) {
-      if (missing && [400, 404].includes(response.status) && data?.error === "RecordNotFound")
-        return null;
-      if ([401, 403].includes(response.status)) {
-        throw new Error("PDS access denied. Sign in again with permission to save drawings.");
+      const { data } = await agent.com.atproto.repo.getRecord({
+        repo: agent.assertDid, collection, rkey: id,
+      });
+      if (checkEntry(data, agent.assertDid) !== id) {
+        throw new Error("PDS returned another drawing.");
       }
-      if (response.status === 429) throw new Error("PDS request limit reached. Try again later.");
-      if (data?.error === "InvalidSwap") {
-        throw new Error("This drawing changed since it was loaded. Reload before saving.");
-      }
-      throw new Error(`PDS ${endpoint} failed (HTTP ${response.status}).`);
+      return { ...data, id };
+    } catch (error) {
+      if ([400, 404].includes(error.status) && error.error === "RecordNotFound") return null;
+      throw error;
     }
-    return data;
   }
-
-  function validEntry(entry, did) {
-    const record = entry?.value;
-    return (
-      keyFromUri(entry?.uri, did) &&
-      record?.$type === collection &&
-      [25, 40, 64].includes(record.width) &&
-      record.height === record.width &&
-      record.image?.$type === "blob" &&
-      record.image.mimeType === "image/png" &&
-      typeof record.image.ref?.$link === "string" &&
-      record.image.ref.$link.length > 0 &&
-      Number.isInteger(record.image.size) &&
-      record.image.size > 0 &&
-      record.image.size <= maxBlobBytes
-    );
-  }
-
-  async function entries(did) {
-    const records = new Map();
+  async function entries(agent) {
+    const found = new Map();
     const cursors = new Set();
     let cursor;
     do {
-      const query = { repo: did, collection, limit: "100" };
-      if (cursor) query.cursor = cursor;
-      const page = await request("repo.listRecords", did, { query });
-      if (!Array.isArray(page?.records)) throw new Error("PDS returned an invalid drawing list.");
-      for (const entry of page.records) {
-        if (validEntry(entry, did)) records.set(keyFromUri(entry.uri, did), entry);
+      const { data } = await agent.com.atproto.repo.listRecords({
+        repo: agent.assertDid, collection, limit: "100", ...(cursor ? { cursor } : {}),
+      });
+      if (!Array.isArray(data?.records)) throw new Error("PDS returned an invalid drawing list.");
+      for (const entry of data.records) {
+        const id = checkEntry(entry, agent.assertDid);
+        found.set(id, { ...entry, id });
       }
-      cursor = page.cursor;
+      cursor = data.cursor;
       if (cursor !== undefined && (typeof cursor !== "string" || cursors.has(cursor))) {
         throw new Error("PDS returned an invalid pagination cursor.");
       }
       if (cursor) cursors.add(cursor);
     } while (cursor);
-    return [...records.values()];
+    return [...found.values()];
   }
-
-  async function find(id, did) {
-    validateId(id);
-    return request("repo.getRecord", did, {
-      query: { repo: did, collection, rkey: id },
-      missing: true,
-    });
-  }
-
-  async function decode(entry, did) {
-    if (!validEntry(entry, did)) throw new Error("Unsupported or damaged PDS drawing record.");
-    const id = keyFromUri(entry.uri, did);
-    const blob = await request("sync.getBlob", did, {
-      query: { did, cid: entry.value.image.ref.$link },
-      binary: true,
-    });
-    const drawing = snapshotDrawing(await codec.decode(blob, entry.value));
-    sameAccount(did);
-    return { id, ...drawing, savedAt: timeFromRecordKey(id) };
-  }
-
-  async function write(drawing, did, existing) {
-    const png = await codec.encode(drawing);
-    sameAccount(did);
-    if (
-      !(png instanceof globalThis.Blob) ||
-      png.type !== "image/png" ||
-      png.size === 0 ||
-      png.size > maxBlobBytes
-    ) {
-      throw new Error("PNG encoding failed or the image exceeds the size limit.");
-    }
-    const uploaded = await request("repo.uploadBlob", did, { body: png });
-    const record = {
-      $type: collection,
-      image: uploaded?.blob,
-      width: drawing.size,
-      height: drawing.size,
-    };
-    if (!validEntry({ uri: `at://${did}/${collection}/check`, value: record }, did)) {
-      throw new Error("PDS returned an invalid uploaded Blob reference.");
-    }
-    const body = { repo: did, collection, record };
-    if (existing) {
-      body.rkey = keyFromUri(existing.uri, did);
-      if (existing.cid) body.swapRecord = existing.cid;
-    }
-    const result = await request(existing ? "repo.putRecord" : "repo.createRecord", did, { body });
-    const id = keyFromUri(result?.uri, did);
-    if (!id || (existing && id !== body.rkey)) {
-      throw new Error("PDS save could not be confirmed. Reload drawings before retrying.");
-    }
-    return { id, ...drawing, savedAt: timeFromRecordKey(id) };
+  const savedTime = (entry) => validTime(entry.value.updatedAt) ? entry.value.updatedAt
+    : validTime(entry.value.createdAt) ? entry.value.createdAt : timeFromRecordKey(entry.id);
+  async function decode(agent, entry) {
+    const drawing = snapshot(await loadBoard(agent, entry.id));
+    checkEntry(entry, agent.assertDid);
+    return { ...drawing, id: entry.id, uri: entry.uri, cid: entry.cid, savedAt: savedTime(entry) };
   }
 
   /**
-   * Creates a new PNG-backed snapshot, respecting the frontend's four-draft limit.
-   * @param {{size: number, pixels: string[]}} canvas - The drawing to snapshot.
-   * @returns {Promise<object>} The saved draft after both upload and record creation succeed.
+   * Creates a PDS snapshot and returns its AT URI for backend submission.
+   * @param {{size: number, pixels: string[]}} canvas - The current drawing.
+   * @returns {Promise<object>} A saved frontend draft plus URI and CID.
    */
   async function saveDraft(canvas) {
-    const did = account();
-    const drawing = snapshotDrawing(canvas);
-    if ((await entries(did)).length >= maxDrafts) {
-      throw new Error(`You can save up to ${maxDrafts} drafts. Delete a draft first.`);
+    const drawing = snapshot(canvas);
+    const agent = agentFor();
+    const did = agent.assertDid;
+    if ((await entries(agent)).length >= maxDrafts) {
+      throw new Error("Delete a draft before saving.");
     }
-    return write(drawing, did);
+    const result = await saveBoard(agent, drawing.pixels, drawing.size);
+    const id = idFromUri(result.uri, did);
+    const entry = await getEntry(agent, id);
+    if (!entry) throw new Error("PDS save could not be confirmed. Reload before retrying.");
+    return decode(agent, entry);
   }
-
-  /** @returns {Promise<object[]>} Decoded drawings, newest record key first. */
+  /** @returns {Promise<object[]>} PDS drawings ordered by last saved time. */
   async function listDrafts() {
-    const did = account();
+    const agent = agentFor();
     const result = [];
-    const sorted = (await entries(did)).sort((a, b) => b.uri.localeCompare(a.uri));
-    for (const entry of sorted) result.push(await decode(entry, did));
-    return result;
+    for (const entry of await entries(agent)) result.push(await decode(agent, entry));
+    return result.sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
   }
-
   /**
-   * Downloads one PNG and restores editable pixels without touching the page directly.
-   * @param {string} id - The selected record key.
-   * @returns {Promise<object|null>} The drawing, or null for a missing record.
+   * Loads editable pixels through the Lexicon decoder.
+   * @param {string} id - The record key selected by the UI.
+   * @returns {Promise<object|null>} The drawing, or null if its record is absent.
    */
   async function loadDraft(id) {
-    const did = account();
-    const entry = await find(id, did);
-    if (!entry) return null;
-    if (keyFromUri(entry.uri, did) !== id) throw new Error("PDS returned a different drawing.");
-    return decode(entry, did);
+    const agent = agentFor();
+    const entry = await getEntry(agent, id);
+    return entry ? decode(agent, entry) : null;
   }
-
   /**
-   * Replaces an existing work using the same key; it does not create another snapshot.
-   * @param {string} id - The existing work's record key.
+   * Updates the same record and preserves its creation time.
+   * @param {string} id - The existing record key.
    * @param {{size: number, pixels: string[]}} canvas - The replacement drawing.
-   * @returns {Promise<object>} The updated work; missing records reject.
+   * @returns {Promise<object>} The updated editable draft and backend identifiers.
    */
   async function updateDraft(id, canvas) {
-    const did = account();
-    const drawing = snapshotDrawing(canvas);
-    const entry = await find(id, did);
+    const drawing = snapshot(canvas);
+    const readAgent = agentFor();
+    const entry = await getEntry(readAgent, id);
     if (!entry) throw new Error("This drawing no longer exists. Save it as a new draft.");
-    if (!validEntry(entry, did) || keyFromUri(entry.uri, did) !== id) {
-      throw new Error("Unsupported or damaged PDS drawing record.");
+    const agent = agentFor(entry);
+    if (agent.assertDid !== readAgent.assertDid) throw new Error("Your account changed.");
+    const result = await updateBoard(agent, drawing.pixels, drawing.size, id);
+    if (idFromUri(result.uri, agent.assertDid) !== id) {
+      throw new Error("PDS returned another drawing.");
     }
-    return write(drawing, did, entry);
+    const saved = await getEntry(agent, id);
+    if (!saved) throw new Error("PDS update could not be confirmed. Reload before retrying.");
+    return decode(agent, saved);
   }
-
   /**
-   * Deletes only the selected repository record after confirming that it exists.
-   * @param {string} id - The draft record key to remove.
-   * @returns {Promise<boolean>} False if already absent; true after a confirmed deletion.
+   * Deletes only the selected PDS record, using its CID to detect a stale selection.
+   * @param {string} id - The selected record key.
+   * @returns {Promise<boolean>} Whether an existing record was deleted.
    */
   async function deleteDraft(id) {
-    const did = account();
-    const entry = await find(id, did);
+    const agent = agentFor();
+    const entry = await getEntry(agent, id);
     if (!entry) return false;
-    if (keyFromUri(entry.uri, did) !== id) throw new Error("PDS returned a different drawing.");
-    const body = { repo: did, collection, rkey: id };
-    if (entry.cid) body.swapRecord = entry.cid;
-    await request("repo.deleteRecord", did, { body });
+    await agent.com.atproto.repo.deleteRecord({
+      repo: agent.assertDid, collection, rkey: id, ...(entry.cid ? { swapRecord: entry.cid } : {}),
+    });
     return true;
   }
-
   return { saveDraft, listDrafts, loadDraft, updateDraft, deleteDraft };
 }

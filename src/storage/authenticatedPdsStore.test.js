@@ -4,7 +4,7 @@ import { createAuthenticatedPdsStore } from "./authenticatedPdsStore.js";
 
 test("the integrating application must provide its OAuth module loader", async () => {
   await assert.rejects(
-    createAuthenticatedPdsStore({ collection: "org.example.board" }),
+    createAuthenticatedPdsStore({ collection: "cloud.pixelboard.imageBoard" }),
     /Provide the OAuth module loader/,
   );
 });
@@ -23,13 +23,13 @@ test("OAuth initializes before storage sends authenticated requests", async () =
       const url = new globalThis.URL(path, "https://pds.example");
       assert.equal(url.pathname, "/xrpc/com.atproto.repo.listRecords");
       assert.equal(url.searchParams.get("repo"), did);
-      assert.equal(url.searchParams.get("collection"), "org.example.board");
+      assert.equal(url.searchParams.get("collection"), "cloud.pixelboard.imageBoard");
       assert.equal(init.method, "GET");
       return new globalThis.Response(JSON.stringify({ records: [] }));
     },
   };
   const store = await createAuthenticatedPdsStore(
-    { collection: "org.example.board" }, () => auth,
+    { collection: "cloud.pixelboard.imageBoard" }, () => auth,
   );
   assert.deepEqual(await store.listDrafts(), []);
   assert.deepEqual(calls, ["init", "fetch"]);
@@ -41,7 +41,7 @@ test("OAuth initializes before storage sends authenticated requests", async () =
 test("OAuth initialization failures propagate without a local storage fallback", async () => {
   const failure = new Error("OAuth initialization failed");
   await assert.rejects(
-    createAuthenticatedPdsStore({ collection: "org.example.board" }, () => ({
+    createAuthenticatedPdsStore({ collection: "cloud.pixelboard.imageBoard" }, () => ({
       initAuth: async () => { throw failure; },
     })),
     (error) => error === failure,
@@ -56,6 +56,6 @@ test("the connection requires a valid collection instead of guessing a namespace
   };
   await assert.rejects(
     createAuthenticatedPdsStore({ collection: "app.image-board" }, () => auth),
-    /valid collection NSID/,
+    /Lexicon collection/,
   );
 });
