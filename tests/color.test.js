@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb, withChannel, blendHex } from '../src/color.js';
+import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb, withChannel, blendHex } from '../src/color/color.js';
 
 test('hsvToRgb converts the primary colors', () => {
   assert.deepEqual(hsvToRgb({ h: 0, s: 100, v: 100 }), { r: 255, g: 0, b: 0 });

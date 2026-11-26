@@ -2,10 +2,13 @@ import { linePixels, colorAtCell } from './pixels.js';
 import { brushCells, cellsInsideCanvas } from './brush.js';
 import { createBrushPanel } from './brushPanel.js';
 import { showBrushOutline, hideBrushOutline } from './brushOutline.js';
-import { createColorPicker } from './colorPicker.js';
-import { blendHex } from './color.js';
-import { loadSectionState, saveSectionState } from './colorSections.js';
-import { createRecentColorsRow } from './recentColorsRow.js';
+import {
+  createColorPicker,
+  blendHex,
+  loadSectionState,
+  saveSectionState,
+  createRecentColorsRow,
+} from './color/main.js';
 import { createDraftsColumn } from './draftsColumn.js';
 import { createAccountMenu } from './accountMenu.js';
 // Stand-in login. Change only this line to './auth.js' when the real module is merged.

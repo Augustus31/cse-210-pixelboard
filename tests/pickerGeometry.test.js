@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hueFromOffset, offsetFromHue, svFromSquarePoint, squarePointFromSv } from '../src/pickerGeometry.js';
+import { hueFromOffset, offsetFromHue, svFromSquarePoint, squarePointFromSv } from '../src/color/pickerGeometry.js';
 
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} vs ${expected}`);
 
