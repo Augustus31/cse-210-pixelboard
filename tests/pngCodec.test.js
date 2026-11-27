@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPngCodec, rgbaToPixels, snapshotDrawing } from "./pngCodec.js";
+import { createPngCodec, rgbaToPixels, snapshotDrawing } from "../src/storage/pngCodec.js";
 
 function header(width, height) {
   const bytes = new Uint8Array(24);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createAuthenticatedPdsStore } from "./authenticatedPdsStore.js";
+import { createAuthenticatedPdsStore } from "../src/storage/authenticatedPdsStore.js";
 
 test("the integrating application must provide its OAuth module loader", async () => {
   await assert.rejects(

@@ -1,7 +1,7 @@
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPdsImageStore, timeFromRecordKey } from "./pdsImageStore.js";
-import { BOARD_COLLECTION } from "./oauthAgent.js";
+import { createPdsImageStore, timeFromRecordKey } from "../src/storage/pdsImageStore.js";
+import { BOARD_COLLECTION } from "../src/storage/oauthAgent.js";
 
 // Canvas primitives are test doubles. Production calls the actual Lexicon functions.
 const previousDocument = globalThis.document;

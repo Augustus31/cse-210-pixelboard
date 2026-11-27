@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { BOARD_COLLECTION } from "./oauthAgent.js";
+import { BOARD_COLLECTION } from "../src/storage/oauthAgent.js";
 
 const schema = JSON.parse(readFileSync(
-  new globalThis.URL("../../lexicons/app/image-board.json", import.meta.url), "utf8",
+  new globalThis.URL("../lexicons/app/image-board.json", import.meta.url), "utf8",
 ));
 
 test("store collection matches the merged Lexicon and timestamps remain optional", () => {

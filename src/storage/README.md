@@ -62,6 +62,9 @@ operations, and failed writes are not retried automatically.
 
 ## Verification and remaining integration
 
+Save/Load unit tests are kept in the repository-level `tests/` directory,
+separate from the implementation in `src/storage/`.
+
 ```sh
 npm run lint
 npm test
