@@ -1,6 +1,6 @@
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { color, setColor } from '../src/color/main.js';
+import { color, setColor, subscribe } from '../src/color/main.js';
 
 // `color` is shared module state, so each test starts from a known color.
 const START = '#123456';
@@ -99,4 +99,126 @@ test('setColor rejects objects that turn into a valid hex string', () => {
   expectRejected(['#ff8800']);
   expectRejected({ toString: () => '#ff8800' });
   expectRejected(new String('#ff8800'));
+});
+
+// ---------------------------------------------------------------------------
+// subscribe
+// ---------------------------------------------------------------------------
+
+describe('subscribe', () => {
+  test('a subscriber is called with the new color', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    setColor('#ff0000');
+    stop();
+    assert.deepEqual(calls, ['#ff0000']);
+  });
+
+  test('a subscriber gets the lowercase color', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    setColor('#FF0000');
+    stop();
+    assert.deepEqual(calls, ['#ff0000']);
+  });
+
+  test('the color is already changed when a subscriber is called', () => {
+    setColor(START);
+    let seen = null;
+    const stop = subscribe(() => { seen = color; });
+    setColor('#ff0000');
+    stop();
+    assert.equal(seen, '#ff0000');
+  });
+
+  test('a subscriber is called one time for each change', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    setColor('#ff0000');
+    setColor('#00ff00');
+    setColor('#0000ff');
+    stop();
+    assert.deepEqual(calls, ['#ff0000', '#00ff00', '#0000ff']);
+  });
+
+  test('setting the same color does not call the subscriber', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    setColor(START);
+    setColor(START.toUpperCase());
+    stop();
+    assert.deepEqual(calls, []);
+  });
+
+  test('an invalid color does not call the subscriber', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    setColor('banana');
+    setColor(null);
+    stop();
+    assert.deepEqual(calls, []);
+  });
+
+  test('the returned function stops the calls', () => {
+    setColor(START);
+    const calls = [];
+    const stop = subscribe((newColor) => calls.push(newColor));
+    stop();
+    setColor('#ff0000');
+    assert.deepEqual(calls, []);
+  });
+
+  test('all subscribers are called', () => {
+    setColor(START);
+    const first = [];
+    const second = [];
+    const stopFirst = subscribe((newColor) => first.push(newColor));
+    const stopSecond = subscribe((newColor) => second.push(newColor));
+    setColor('#ff0000');
+    stopFirst();
+    stopSecond();
+    assert.deepEqual(first, ['#ff0000']);
+    assert.deepEqual(second, ['#ff0000']);
+  });
+
+  test('stopping one subscriber does not stop the others', () => {
+    setColor(START);
+    const first = [];
+    const second = [];
+    const stopFirst = subscribe((newColor) => first.push(newColor));
+    const stopSecond = subscribe((newColor) => second.push(newColor));
+    stopFirst();
+    setColor('#ff0000');
+    stopSecond();
+    assert.deepEqual(first, []);
+    assert.deepEqual(second, ['#ff0000']);
+  });
+
+  test('the same function subscribed two times is called one time', () => {
+    setColor(START);
+    const calls = [];
+    const listener = (newColor) => calls.push(newColor);
+    const stop = subscribe(listener);
+    subscribe(listener);
+    setColor('#ff0000');
+    stop();
+    assert.deepEqual(calls, ['#ff0000']);
+  });
+
+  test('a subscriber that sets the same color does not cause a loop', () => {
+    setColor(START);
+    let count = 0;
+    const stop = subscribe((newColor) => {
+      count += 1;
+      setColor(newColor);
+    });
+    setColor('#ff0000');
+    stop();
+    assert.equal(count, 1);
+  });
 });

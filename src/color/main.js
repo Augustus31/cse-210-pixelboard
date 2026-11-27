@@ -9,6 +9,19 @@ export let color = '#6d5ce7';
 
 const HEX_COLOR_REGEX = /^#[0-9a-f]{6}$/i;
 
+//functions to call when color changes
+const subscribers = new Set();
+
+/**
+ * Calls `listener` each time the color changes.
+ * @param {(color: string) => void} listener - Gets the new color, '#rrggbb'
+ * @returns {() => void} Call this function to stop the calls
+ */
+export function subscribe(listener) {
+  subscribers.add(listener);
+  return () => subscribers.delete(listener);
+}
+
 /**
  * Changes the central color.
  * Text that is not a valid '#rrggbb' hex is ignored, and the color stays the same.
@@ -21,7 +34,12 @@ export function setColor(hex) {
   if (typeof hex !== 'string') return false; 
   if (HEX_COLOR_REGEX.test(hex) == false) return false;
 
-  color = hex.toLowerCase();
+
+  // call all the subscriber functions if color changes
+  const next = hex.toLowerCase();
+  if (next === color) return true;
+  color = next;
+  for (const listener of subscribers) listener(color);
   return true;
 }
 
