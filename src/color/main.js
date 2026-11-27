@@ -54,6 +54,7 @@ export function setColor(hex) {
 }
 
 export { createColorPicker } from './colorPicker.js';
+export { createColorWheel } from './colorWheel.js';
 export { blendHex } from './color.js';
 export { loadSectionState, saveSectionState } from './colorSections.js';
 export { createRecentColorsRow } from './recentColorsRow.js';
