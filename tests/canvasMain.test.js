@@ -9,6 +9,7 @@ import {
   getCell,
   setCell,
   setGridSize,
+  subscribe,
 } from '../src/canvas/main.js';
 
 // The grid is shared module state, so each test starts from a known empty grid.
@@ -32,8 +33,7 @@ function expectSizeRejected(width, height) {
 }
 
 
-// start state tests
-// These tests must run before the first resetGrid call.
+// start state tests (these must run before the first resetGrid call)
 
 describe('start state', () => {
   test('the empty cell color has zero alpha', () => {
@@ -249,5 +249,92 @@ describe('setGridSize', () => {
       expectSizeRejected(value, 3);
       expectSizeRejected(4, value);
     }
+  });
+});
+
+
+// subscribe tests
+
+describe('subscribe', () => {
+  test('setCell calls the listener with the grid after the change', () => {
+    resetGrid();
+    const calls = [];
+    const unsubscribe = subscribe((newGrid) => calls.push(newGrid[1][2]));
+    setCell(1, 2, RED);
+    assert.deepEqual(calls, [RED]);
+    unsubscribe();
+  });
+
+  test('setCell with the same color does not call the listener', () => {
+    resetGrid();
+    setCell(1, 2, RED);
+    let callCount = 0;
+    const unsubscribe = subscribe(() => { callCount = callCount + 1; });
+    assert.equal(setCell(1, 2, RED), true);
+    assert.equal(callCount, 0);
+    unsubscribe();
+  });
+
+  test('setCell for a cell that is not in the grid does not call the listener', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => { callCount = callCount + 1; });
+    setCell(-1, 0, RED);
+    setCell(0, START_WIDTH, RED);
+    assert.equal(callCount, 0);
+    unsubscribe();
+  });
+
+  test('setGridSize calls the listener with the new grid', () => {
+    resetGrid();
+    const sizes = [];
+    const unsubscribe = subscribe((newGrid) => sizes.push([newGrid[0].length, newGrid.length]));
+    setGridSize(5, 2);
+    assert.deepEqual(sizes, [[5, 2]]);
+    unsubscribe();
+  });
+
+  test('setGridSize with a size that is not valid does not call the listener', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => { callCount = callCount + 1; });
+    setGridSize(0, 2);
+    assert.equal(callCount, 0);
+    unsubscribe();
+  });
+
+  test('all listeners are called', () => {
+    resetGrid();
+    let firstCount = 0;
+    let secondCount = 0;
+    const unsubscribeFirst = subscribe(() => { firstCount = firstCount + 1; });
+    const unsubscribeSecond = subscribe(() => { secondCount = secondCount + 1; });
+    setCell(0, 0, RED);
+    assert.equal(firstCount, 1);
+    assert.equal(secondCount, 1);
+    unsubscribeFirst();
+    unsubscribeSecond();
+  });
+
+  test('the function from subscribe stops the calls', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => { callCount = callCount + 1; });
+    unsubscribe();
+    setCell(0, 0, RED);
+    setGridSize(5, 2);
+    assert.equal(callCount, 0);
+  });
+
+  test('a listener that calls setCell with the same color does not make a loop', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => {
+      callCount = callCount + 1;
+      setCell(0, 0, RED);
+    });
+    setCell(0, 0, RED);
+    assert.equal(callCount, 1);
+    unsubscribe();
   });
 });

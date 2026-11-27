@@ -7,10 +7,26 @@
 // The color of a cell with no paint, '#rrggbbaa' with alpha 00
 export const EMPTY_CELL = '#00000000';
 
+// The default size of one cell on screen, in pixels
+export const DEFAULT_CELL_SIZE = 16;
+
 const DEFAULT_GRID_SIZE = 32;
 export let gridWidth = DEFAULT_GRID_SIZE;
 export let gridHeight = DEFAULT_GRID_SIZE;
 export let grid = makeEmptyGrid(gridWidth, gridHeight);
+
+//functions to call when the grid changes
+const subscribers = new Set();
+
+/**
+ * Calls `listener` each time the grid changes (a cell color or the grid size).
+ * @param {(grid: string[][]) => void} listener - Gets the grid after the change
+ * @returns {() => void} Call this function to stop the calls
+ */
+export function subscribe(listener) {
+  subscribers.add(listener);
+  return () => subscribers.delete(listener);
+}
 
 /**
  * Makes a grid where all cells are empty.
@@ -63,11 +79,18 @@ export function getCell(row, column) {
  * @param {number} row - The row of the cell, 0 is the top row
  * @param {number} column - The column of the cell, 0 is the left column
  * @param {string} cellColor - The new color, '#rrggbbaa' in lower case
- * @returns {boolean} true when the cell is in the grid, false when it is not
+ * @returns {boolean} true when the cell is in the grid (also when the color is the same
+ *   as the current color), false when it is not
  */
 export function setCell(row, column, cellColor) {
   if (isInGrid(row, column) == false) return false;
+
+  // Same color: do not call the subscribers. This also stops a loop.
+  if (grid[row][column] === cellColor) return true;
+
+  // call all the subscriber functions if the cell changes
   grid[row][column] = cellColor;
+  for (const listener of subscribers) listener(grid);
   return true;
 }
 
@@ -87,5 +110,8 @@ export function setGridSize(width, height) {
   gridWidth = width;
   gridHeight = height;
   grid = makeEmptyGrid(gridWidth, gridHeight);
+
+  // calls subscribers with the new grid
+  for (const listener of subscribers) listener(grid);
   return true;
 }
