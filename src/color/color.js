@@ -1,6 +1,5 @@
 /**
- * Pure color math for the color picker.
- * Units: h is 0–360 degrees; s and v are 0–100 percent; r, g, b are 0–255.
+ * @file Color format conversions and blending.
  * @module color
  */
 

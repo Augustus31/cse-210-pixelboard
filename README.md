@@ -69,7 +69,7 @@ If `initAuth()` also returns the user's `handle`, the header shows `@handle`; ot
 
 - `src/pixelEditor.js` connects the page: drawing, tools, history, and auto-save.
 - Drawing: `src/pixels.js` (stroke interpolation so fast drags have no gaps, and cell color lookup), `src/brush.js` (brush footprint math), `src/brushPanel.js` and `src/brushOutline.js` (brush panel and hover outline).
-- Colors: `src/color.js` (HSV, RGB, and hex conversion, and alpha blending), `src/pickerGeometry.js`, `src/pickerDrawing.js`, `src/colorPicker.js`, `src/colorChannels.js` (the color picker), `src/colorSections.js` (remembers open sections), `src/numberInput.js`, `src/recentColors.js`, and `src/recentColorsRow.js`.
+- Colors: everything is in `src/color/`. `main.js` is the main script of the folder and the only file the rest of the app imports. The other files support it: `color.js` (HSV, RGB, and hex conversion, and alpha blending), `pickerGeometry.js`, `pickerDrawing.js`, `colorPicker.js`, `colorChannels.js`, and `numberInput.js` (the color picker), `colorSections.js` (remembers open sections), `recentColors.js`, and `recentColorsRow.js`.
 - Drafts: `src/drafts.js` is the drafts API (`saveDraft`, `listDrafts`, `loadDraft`, `deleteDraft`). Today it uses local storage; a later version can use the PDS without changes to the UI. `src/draftsColumn.js`, `src/dialogs.js`, `src/draftDisplay.js`, and `src/unsaved.js` build the drafts column.
 - Login: `src/accountMenu.js` builds the account area in the header. `src/account.js` cleans and checks the handle and makes the name label. `src/authStub.js` is the stand-in login module (the dummy one need to be relaced by `auth.js` after branch merge).
 - `src/style.css` provides the responsive layout.
