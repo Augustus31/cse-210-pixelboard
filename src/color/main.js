@@ -55,3 +55,5 @@ export function setColor(hex) {
 
 export { createColorWheel } from './colorWheel.js';
 export { createHexInput } from './hexInput.js';
+export { createSwatch } from './swatch.js';
+export { createLastUsedColors } from './lastUsedColors.js';
