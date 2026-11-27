@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNumberInput } from '../src/color/numberInput.js';
+import { parseNumberInput } from '../src/numberInput.js';
 
 test('a number in range is kept and rounded to a whole number', () => {
   assert.equal(parseNumberInput('120', 0, 360, 5), 120);

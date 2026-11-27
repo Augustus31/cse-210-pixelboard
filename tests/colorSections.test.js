@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SECTION_STORAGE_KEY, DEFAULT_SECTION_STATE, loadSectionState, saveSectionState } from '../src/color/colorSections.js';
+import { SECTION_STORAGE_KEY, DEFAULT_SECTION_STATE, loadSectionState, saveSectionState } from '../src/colorSections.js';
 
 function fakeStorage(initial = {}) {
   const data = { ...initial };

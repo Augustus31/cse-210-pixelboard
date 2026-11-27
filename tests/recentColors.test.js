@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RECENT_COLORS_KEY, MAX_RECENT_COLORS, addRecentColor, loadRecentColors, saveRecentColors } from '../src/color/recentColors.js';
+import { RECENT_COLORS_KEY, MAX_RECENT_COLORS, addRecentColor, loadRecentColors, saveRecentColors } from '../src/recentColors.js';
 
 function fakeStorage(initial = {}) {
   const data = { ...initial };
