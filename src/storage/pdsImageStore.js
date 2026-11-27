@@ -8,15 +8,15 @@ const HEX = /^#[0-9a-f]{6}$/i;
 const validTime = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
 
 /**
- * Connects the existing drafts API to Lexicon helpers and Miguel's OAuth session.
- * PNG conversion and save/load/update are delegated to board-convert.js.
- * @param {object} options - Storage dependencies and limits.
- * @param {Function} options.authFetch - Miguel's authenticated PDS fetch helper.
- * @param {Function} options.currentDid - Miguel's current DID helper.
- * @param {string} [options.collection] - Must match the merged Lexicon collection.
- * @param {number} [options.maxDrafts=4] - Existing frontend snapshot limit.
- * @param {Function} [options.now] - Clock for createdAt and updatedAt.
- * @returns {object} The save, list, load, update, and delete drafts API.
+ * Creates a store for drawings saved in the signed-in user's PDS.
+ * Uses board-convert.js to convert, save, load, and update drawings.
+ * @param {object} options - Request functions, draft limits, and the save-time clock.
+ * @param {Function} options.authFetch - Sends authenticated requests to the user's PDS.
+ * @param {Function} options.currentDid - Returns the current user's DID, or null when signed out.
+ * @param {string} [options.collection] - The collection defined by the drawing schema.
+ * @param {number} [options.maxDrafts=4] - The maximum number of saved drafts.
+ * @param {Function} [options.now] - Returns the current date for save timestamps.
+ * @returns {object} Methods for saving, listing, loading, updating, and deleting drawings.
  */
 export function createPdsImageStore({
   authFetch, currentDid, collection = BOARD_COLLECTION, maxDrafts = 4,
@@ -26,7 +26,7 @@ export function createPdsImageStore({
     throw new Error(`Use the Lexicon collection ${BOARD_COLLECTION}.`);
   }
   if (!Number.isInteger(maxDrafts) || maxDrafts < 1) throw new Error("Invalid draft limit.");
-  // Validate auth dependencies at construction without requiring a signed-in session yet.
+  // Check the request functions now. Sign-in is checked when an operation runs.
   createOAuthAgent({ authFetch, currentDid });
   const idFromUri = (uri, did) => {
     const prefix = `at://${did}/${collection}/`;
@@ -115,9 +115,9 @@ export function createPdsImageStore({
   }
 
   /**
-   * Creates a PDS snapshot and returns its AT URI for backend submission.
+   * Saves a copy of the drawing as a new PDS record.
    * @param {{size: number, pixels: string[]}} canvas - The current drawing.
-   * @returns {Promise<object>} A saved frontend draft plus URI and CID.
+   * @returns {Promise<object>} The saved drawing, including its record URI and CID.
    */
   async function saveDraft(canvas) {
     const drawing = snapshot(canvas);
@@ -132,7 +132,10 @@ export function createPdsImageStore({
     if (!entry) throw new Error("PDS save could not be confirmed. Reload before retrying.");
     return decode(agent, entry);
   }
-  /** @returns {Promise<object[]>} PDS drawings ordered by last saved time. */
+  /**
+   * Lists saved drawings, with the most recently saved first.
+   * @returns {Promise<object[]>} The drawings and their record details.
+   */
   async function listDrafts() {
     const agent = agentFor();
     const result = [];
@@ -140,7 +143,7 @@ export function createPdsImageStore({
     return result.sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
   }
   /**
-   * Loads editable pixels through the Lexicon decoder.
+   * Loads a saved PNG and converts it back to editable pixels.
    * @param {string} id - The record key selected by the UI.
    * @returns {Promise<object|null>} The drawing, or null if its record is absent.
    */
@@ -153,7 +156,7 @@ export function createPdsImageStore({
    * Updates the same record and preserves its creation time.
    * @param {string} id - The existing record key.
    * @param {{size: number, pixels: string[]}} canvas - The replacement drawing.
-   * @returns {Promise<object>} The updated editable draft and backend identifiers.
+   * @returns {Promise<object>} The updated drawing, including its record URI and CID.
    */
   async function updateDraft(id, canvas) {
     const drawing = snapshot(canvas);
@@ -171,7 +174,7 @@ export function createPdsImageStore({
     return decode(agent, saved);
   }
   /**
-   * Deletes only the selected PDS record, using its CID to detect a stale selection.
+   * Deletes a saved drawing. Rejects if the record changed after it was read.
    * @param {string} id - The selected record key.
    * @returns {Promise<boolean>} Whether an existing record was deleted.
    */

@@ -1,13 +1,13 @@
-/** Adapts the OAuth owner's fetch helpers to the Lexicon conversion API. */
+/** Connects authenticated requests to the methods used by board-convert.js. */
 export const BOARD_COLLECTION = "cloud.pixelboard.imageBoard";
 
 /**
- * Supplies the Agent methods used by board-convert.js without another login or SDK.
- * @param {object} options - Authentication and per-operation write metadata.
- * @param {Function} options.authFetch - Miguel's authenticated request helper.
- * @param {Function} options.currentDid - Miguel's current account helper.
- * @param {Function} [options.prepareWrite] - Adds timestamps and conditional write fields.
- * @returns {object} An Agent-compatible subset backed only by the OAuth session.
+ * Creates the Agent methods that board-convert.js needs to read and write drawings.
+ * @param {object} options - Request functions and an optional record preparation callback.
+ * @param {Function} options.authFetch - Sends authenticated requests to the user's PDS.
+ * @param {Function} options.currentDid - Returns the current user's DID, or null when signed out.
+ * @param {Function} [options.prepareWrite] - Adds timestamps or other fields before the write.
+ * @returns {object} The request methods used by the drawing conversion functions.
  */
 export function createOAuthAgent({ authFetch, currentDid, prepareWrite = (body) => body }) {
   if (typeof authFetch !== "function" || typeof currentDid !== "function") {
@@ -23,12 +23,12 @@ export function createOAuthAgent({ authFetch, currentDid, prepareWrite = (body) 
   }
 
   /**
-   * Checks the session around each request and adapts fetch responses to Agent envelopes.
+   * Sends a request and checks that the account has not changed while waiting.
    * @param {string} endpoint - The com.atproto endpoint suffix.
-   * @param {object|Blob} body - Query parameters, a record envelope, or a PNG Blob.
+   * @param {object|Blob} body - Query parameters, a JSON request body, or a PNG Blob.
    * @param {boolean} [write=false] - Whether this is a POST operation.
-   * @param {boolean} [binary=false] - Whether to return downloaded image bytes.
-   * @returns {Promise<{data: object|Blob}>} The response expected by Lexicon helpers.
+   * @param {boolean} [binary=false] - Whether to read a successful response as a Blob.
+   * @returns {Promise<{data: object|Blob}>} Response data in the format expected by Agent methods.
    */
   async function request(endpoint, body, write = false, binary = false) {
     requireAccount();

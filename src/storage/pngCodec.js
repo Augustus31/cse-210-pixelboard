@@ -1,11 +1,11 @@
-/** Lossless conversion between the editor's opaque pixels and the PNG Blob Lexicon. */
+/** Converts canvas pixels to PNG files and back. */
 const SIZES = [25, 40, 64];
 const COLOR = /^#[0-9a-f]{6}$/i;
 
 /**
- * Validates a drawing and copies it before asynchronous work can change its pixels.
+ * Checks the size and colors, then copies the pixels before saving starts.
  * @param {{size: number, pixels: string[]}} canvas - The editor snapshot.
- * @returns {{size: number, pixels: string[]}} An independent validated snapshot.
+ * @returns {{size: number, pixels: string[]}} A checked copy of the drawing.
  */
 export function snapshotDrawing(canvas) {
   if (
@@ -20,9 +20,9 @@ export function snapshotDrawing(canvas) {
 }
 
 /**
- * Converts RGBA bytes to the editor's colors, flattening transparency onto white.
+ * Converts RGBA pixels to hex colors, blending transparent pixels onto white.
  * @param {Uint8ClampedArray} rgba - Four bytes per pixel from the PNG decoder.
- * @returns {string[]} Opaque lowercase hex colors in row-major order.
+ * @returns {string[]} Lowercase hex colors, ordered left to right and top to bottom.
  */
 export function rgbaToPixels(rgba) {
   const pixels = [];
@@ -37,18 +37,18 @@ export function rgbaToPixels(rgba) {
 }
 
 /**
- * Uses native browser PNG encoding and decoding without drawing tools or page changes.
- * @param {object} [options] - Browser primitives may be injected by codec tests.
- * @param {Function} [options.createCanvas] - Creates a detached canvas element.
+ * Creates functions that use a browser canvas to encode and decode PNG files.
+ * @param {object} [options] - Optional canvas and image functions for testing.
+ * @param {Function} [options.createCanvas] - Creates a canvas that is not displayed on the page.
  * @param {Function} [options.decodeImage] - Decodes an image Blob to an ImageBitmap.
- * @returns {{encode: Function, decode: Function}} The asynchronous PNG codec.
+ * @returns {{encode: Function, decode: Function}} Functions for encoding and decoding PNG files.
  */
 export function createPngCodec({
   createCanvas = () => globalThis.document.createElement("canvas"),
   decodeImage = (blob) => globalThis.createImageBitmap(blob, { colorSpaceConversion: "none" }),
 } = {}) {
   /**
-   * Encodes native-resolution pixels; the displayed grid and zoom are never included.
+   * Encodes the drawing at its pixel size, leaving out the editor grid and zoom.
    * @param {{size: number, pixels: string[]}} drawing - The drawing to encode.
    * @returns {Promise<Blob>} A lossless image/png Blob.
    */
@@ -70,7 +70,7 @@ export function createPngCodec({
   }
 
   /**
-   * Checks the PNG header and record dimensions before decoding pixels for the editor.
+   * Checks the PNG dimensions and reads its pixels for editing.
    * @param {Blob} blob - The downloaded PNG data.
    * @param {{width: number, height: number}} dimensions - Dimensions stored in the record.
    * @returns {Promise<{size: number, pixels: string[]}>} The editable drawing.

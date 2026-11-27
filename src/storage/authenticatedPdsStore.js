@@ -1,12 +1,12 @@
 import { createPdsImageStore } from "./pdsImageStore.js";
 
 /**
- * Connects PNG storage to the OAuth owner's session and authenticated fetch helpers.
- * Initializes OAuth before accessing the DID; never substitutes a local login or store.
- * @param {object} options - Storage settings passed to createPdsImageStore.
+ * Initializes sign-in and creates a store for the user's saved drawings.
+ * Waits for the current session to be restored before returning the store.
+ * @param {object} options - Settings for the drawing store.
  * @param {string} [options.collection] - Defaults to cloud.pixelboard.imageBoard.
- * @param {Function} loadAuth - Loads the OAuth module supplied by the integrating frontend.
- * @returns {Promise<object>} The PDS save, list, load, update, and delete API.
+ * @param {Function} loadAuth - Loads the module that provides sign-in and authenticated requests.
+ * @returns {Promise<object>} Methods for saving, listing, loading, updating, and deleting drawings.
  */
 export async function createAuthenticatedPdsStore(
   options,
