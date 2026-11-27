@@ -65,14 +65,12 @@ operations, and failed writes are not retried automatically.
 ```sh
 npm run lint
 npm test
-python3 -m http.server 5175 --bind 127.0.0.1
 ```
 
-Open `/tests/browser/pds-lexicon-roundtrip.html` on that server to run real native
-browser PNG conversion through the actual Lexicon helpers and OAuth adapter.
-PDS responses on that test page are simulated in memory and perform no remote
-writes. Node tests also use simulated PDS responses and canvas primitives.
-The older `/tests/browser/png-roundtrip.html` checks the standalone codec only.
+Node tests use simulated PDS responses and canvas primitives. The standalone
+browser test pages were removed from the submitted branch; they are not required
+by the application. Browser and real-account checks can run in a separate local
+integration checkout.
 
 Real-account end-to-end verification is still pending. Coordinate the final drafts
 entry point and auth initialization with the frontend owner, then test save,
