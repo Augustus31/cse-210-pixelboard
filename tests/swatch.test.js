@@ -1,7 +1,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { color, setColor } from '../src/color/main.js';
-import { createSwatch, DEFAULT_SWATCH_COLORS } from '../src/color/swatch.js';
+import { createSwatch, DEFAULT_SWATCH_COLORS } from '../src/color/UI/swatchUI.js';
 
 // `color` is shared module state, so each test starts from a known color.
 const START = '#123456ff';

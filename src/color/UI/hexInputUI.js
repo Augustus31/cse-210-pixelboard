@@ -1,8 +1,8 @@
 /**
  * A text box that shows the central color as hex, and changes it when the user types a new hex.
- * @module color/hexInput
+ * @module color/UI/hexInputUI
  */
-import { color, setColor, subscribe } from './main.js';
+import { color, setColor, subscribe } from '../main.js';
 
 /**
  * Makes a hex text box inside a given container.

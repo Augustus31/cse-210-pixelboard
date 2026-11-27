@@ -1,8 +1,8 @@
 /**
  * A horizontal line of the last used colors. A click on a color makes it the central color.
- * @module color/lastUsedColors
+ * @module color/UI/lastUsedColorsUI
  */
-import { color, setColor } from './main.js';
+import { color, setColor } from '../main.js';
 
 /**
  * Makes a line of last used colors inside a given container.

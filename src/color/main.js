@@ -53,7 +53,7 @@ export function setColor(hex) {
   return true;
 }
 
-export { createColorWheel } from './colorWheel.js';
-export { createHexInput } from './hexInput.js';
-export { createSwatch } from './swatch.js';
-export { createLastUsedColors } from './lastUsedColors.js';
+export { createColorWheel } from './UI/colorWheelUI.js';
+export { createHexInput } from './UI/hexInputUI.js';
+export { createSwatch } from './UI/swatchUI.js';
+export { createLastUsedColors } from './UI/lastUsedColorsUI.js';

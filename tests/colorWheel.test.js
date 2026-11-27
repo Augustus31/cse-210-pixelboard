@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { color, setColor } from '../src/color/main.js';
-import { createColorWheel } from '../src/color/colorWheel.js';
+import { createColorWheel } from '../src/color/UI/colorWheelUI.js';
 
 // `color` is shared module state, so each test starts from a known color.
 const START = '#123456ff';

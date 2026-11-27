@@ -4,7 +4,7 @@
 
 Use [iro.js](https://iro.js.org/) (`@jaames/iro`) for the color wheel and the alpha bar, in place of a color wheel that we build and maintain ourselves. The version is pinned to exactly `5.5.2` in `package.json`, so it does not update automatically.
 
-The wheel is in `src/color/colorWheel.js`. It sends each change to `setColor()` in `src/color/main.js`, and it subscribes to the central color, so changes from other places show on the wheel.
+The wheel is in `src/color/UI/colorWheelUI.js`. It sends each change to `setColor()` in `src/color/main.js`, and it subscribes to the central color, so changes from other places show on the wheel.
 
 ## Context
 

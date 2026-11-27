@@ -1,9 +1,9 @@
 /**
  * A color wheel with an alpha bar, made with iro.js.
- * @module color/colorWheel
+ * @module color/UI/colorWheelUI
  */
 import iro from '@jaames/iro';
-import { color, setColor, subscribe } from './main.js';
+import { color, setColor, subscribe } from '../main.js';
 
 /**
  * Makes a color wheel and an alpha bar inside a given container

@@ -1,7 +1,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { color, setColor } from '../src/color/main.js';
-import { createHexInput } from '../src/color/hexInput.js';
+import { createHexInput } from '../src/color/UI/hexInputUI.js';
 
 // `color` is shared module state, so each test starts from a known color.
 const START = '#123456ff';

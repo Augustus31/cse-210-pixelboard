@@ -1,7 +1,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { color, setColor } from '../src/color/main.js';
-import { createLastUsedColors } from '../src/color/lastUsedColors.js';
+import { createLastUsedColors } from '../src/color/UI/lastUsedColorsUI.js';
 
 // `color` is shared module state, so each test starts from a known color.
 const START = '#123456ff';

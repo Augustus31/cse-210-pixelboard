@@ -1,8 +1,8 @@
 /**
  * A horizontal row of color buttons (a palette). A click on a button sets the central color.
- * @module color/swatch
+ * @module color/UI/swatchUI
  */
-import { setColor } from './main.js';
+import { setColor } from '../main.js';
 
 // The colors that show when the caller gives no colors
 export const DEFAULT_SWATCH_COLORS = [
