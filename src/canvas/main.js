@@ -115,3 +115,6 @@ export function setGridSize(width, height) {
   for (const listener of subscribers) listener(grid);
   return true;
 }
+
+export { createCheckerboard } from './UI/checkerboardUI.js';
+export { createCanvas } from './UI/canvasUI.js';
