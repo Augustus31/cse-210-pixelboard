@@ -9,6 +9,9 @@ import {
   getCell,
   setCell,
   setGridSize,
+  copyGrid,
+  setGrid,
+  clearGrid,
   subscribe,
 } from '../src/canvas/main.js';
 
@@ -336,5 +339,174 @@ describe('subscribe', () => {
     setCell(0, 0, RED);
     assert.equal(callCount, 1);
     unsubscribe();
+  });
+});
+
+
+describe('copyGrid', () => {
+  test('the copy has the same cells as the grid', () => {
+    resetGrid();
+    setCell(1, 2, RED);
+    const copy = copyGrid();
+    assert.equal(copy.length, START_HEIGHT);
+    assert.equal(copy[0].length, START_WIDTH);
+    assert.equal(copy[1][2], RED);
+    assert.equal(copy[0][0], EMPTY_CELL);
+  });
+
+  test('a change to the copy does not change the grid', () => {
+    resetGrid();
+    const copy = copyGrid();
+    copy[0][0] = RED;
+    assert.equal(getCell(0, 0), EMPTY_CELL);
+  });
+
+  test('a change to the grid does not change the copy', () => {
+    resetGrid();
+    const copy = copyGrid();
+    setCell(0, 0, RED);
+    assert.equal(copy[0][0], EMPTY_CELL);
+  });
+});
+
+
+describe('setGrid', () => {
+  test('replaces all cells', () => {
+    resetGrid();
+    setCell(0, 0, RED);
+    const newGrid = copyGrid();
+    newGrid[0][0] = EMPTY_CELL;
+    newGrid[2][3] = BLUE;
+    assert.equal(setGrid(newGrid), true);
+    assert.equal(getCell(0, 0), EMPTY_CELL);
+    assert.equal(getCell(2, 3), BLUE);
+  });
+
+  test('the grid size becomes the size of the new grid', () => {
+    resetGrid();
+    const newGrid = [
+      [RED, BLUE],
+      [BLUE, RED],
+      [RED, RED],
+      [BLUE, BLUE],
+      [RED, BLUE],
+    ];
+    assert.equal(setGrid(newGrid), true);
+    assert.equal(gridWidth, 2);
+    assert.equal(gridHeight, 5);
+    assert.equal(getCell(4, 1), BLUE);
+  });
+
+  test('a later change to the given list does not change the grid', () => {
+    resetGrid();
+    const newGrid = copyGrid();
+    setGrid(newGrid);
+    newGrid[0][0] = RED;
+    assert.equal(getCell(0, 0), EMPTY_CELL);
+  });
+
+  test('copyGrid then setGrid puts the image back', () => {
+    resetGrid();
+    setCell(1, 1, RED);
+    const saved = copyGrid();
+    setCell(1, 1, BLUE);
+    setCell(2, 2, BLUE);
+    setGrid(saved);
+    assert.deepEqual(copyGrid(), saved);
+  });
+
+  test('a value that is not a valid grid is ignored', () => {
+    const badValues = [
+      null,
+      'grid',
+      [],
+      [[]],
+      ['#ff0000ff'],
+      [[RED, BLUE], [RED]],
+      [[RED, 5]],
+    ];
+    for (const badValue of badValues) {
+      resetGrid();
+      setCell(0, 0, RED);
+      assert.equal(setGrid(badValue), false);
+      assert.equal(gridWidth, START_WIDTH);
+      assert.equal(gridHeight, START_HEIGHT);
+      assert.equal(getCell(0, 0), RED);
+    }
+  });
+
+  test('calls the listener one time with the new grid', () => {
+    resetGrid();
+    const newGrid = copyGrid();
+    newGrid[0][0] = RED;
+    newGrid[1][1] = BLUE;
+    let callCount = 0;
+    let receivedGrid = null;
+    const unsubscribe = subscribe((changedGrid) => {
+      callCount = callCount + 1;
+      receivedGrid = changedGrid;
+    });
+    setGrid(newGrid);
+    unsubscribe();
+    assert.equal(callCount, 1);
+    assert.equal(receivedGrid[1][1], BLUE);
+  });
+
+  test('a value that is not valid does not call the listener', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => {
+      callCount = callCount + 1;
+    });
+    setGrid([[]]);
+    unsubscribe();
+    assert.equal(callCount, 0);
+  });
+});
+
+
+describe('clearGrid', () => {
+  test('makes all cells empty and gives the number of changed cells', () => {
+    resetGrid();
+    setCell(0, 0, RED);
+    setCell(2, 3, BLUE);
+    assert.equal(clearGrid(), 2);
+    for (const cells of copyGrid()) {
+      for (const cell of cells) {
+        assert.equal(cell, EMPTY_CELL);
+      }
+    }
+  });
+
+  test('the grid size stays the same', () => {
+    resetGrid();
+    setCell(0, 0, RED);
+    clearGrid();
+    assert.equal(gridWidth, START_WIDTH);
+    assert.equal(gridHeight, START_HEIGHT);
+  });
+
+  test('calls the listener one time', () => {
+    resetGrid();
+    setCell(0, 0, RED);
+    setCell(1, 1, RED);
+    let callCount = 0;
+    const unsubscribe = subscribe(() => {
+      callCount = callCount + 1;
+    });
+    clearGrid();
+    unsubscribe();
+    assert.equal(callCount, 1);
+  });
+
+  test('an empty grid gives 0 and does not call the listener', () => {
+    resetGrid();
+    let callCount = 0;
+    const unsubscribe = subscribe(() => {
+      callCount = callCount + 1;
+    });
+    assert.equal(clearGrid(), 0);
+    unsubscribe();
+    assert.equal(callCount, 0);
   });
 });

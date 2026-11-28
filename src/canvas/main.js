@@ -140,6 +140,94 @@ export function setGridSize(width, height) {
   return true;
 }
 
+/**
+ * Makes a copy of the grid. A change to the copy does not change the grid.
+ * Use this to keep the image for undo or for a draft.
+ * @returns {string[][]} The copy, as a list of rows
+ */
+export function copyGrid() {
+  const rows = [];
+  for (let row = 0; row < gridHeight; row++) {
+    const cells = [];
+    for (let column = 0; column < gridWidth; column++) {
+      cells.push(grid[row][column]);
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+
+/**
+ * Tells if a value is a valid grid: a list of 1 or more rows, where all rows
+ * have the same length of 1 or more, and each cell is a string.
+ * @param {*} rows - The value to check
+ * @returns {boolean} true when the value is a valid grid
+ */
+function isValidGrid(rows) {
+  if (Array.isArray(rows) == false) return false;
+  if (rows.length < 1) return false;
+  if (Array.isArray(rows[0]) == false) return false;
+
+  const width = rows[0].length;
+  if (width < 1) return false;
+
+  for (const cells of rows) {
+    if (Array.isArray(cells) == false) return false;
+    if (cells.length !== width) return false;
+    for (const cell of cells) {
+      if (typeof cell !== 'string') return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Replaces all cells with the cells of `newGrid`. The grid size becomes the size of `newGrid`.
+ * Use this to load a draft or to undo. The subscribers are called one time.
+ * The grid keeps a copy, so a later change to `newGrid` does not change the grid.
+ * A value that is not a valid grid is ignored, and the grid stays the same.
+ * @param {string[][]} newGrid - The new cells, as a list of rows. All rows must have
+ *   the same length. Each cell is a color, '#rrggbbaa' in lower case.
+ * @returns {boolean} true when `newGrid` is valid, false when it is not
+ */
+export function setGrid(newGrid) {
+  if (isValidGrid(newGrid) == false) return false;
+
+  const rows = [];
+  for (const cells of newGrid) {
+    rows.push(cells.slice());
+  }
+
+  gridHeight = rows.length;
+  gridWidth = rows[0].length;
+  grid = rows;
+
+  for (const listener of subscribers) listener(grid);
+  return true;
+}
+
+/**
+ * Makes all cells empty. The grid size stays the same.
+ * The subscribers are called one time, and only when a cell changed.
+ * @returns {number} The number of cells that changed color
+ */
+export function clearGrid() {
+  let changedCount = 0;
+  for (let row = 0; row < gridHeight; row++) {
+    for (let column = 0; column < gridWidth; column++) {
+      if (grid[row][column] === EMPTY_CELL) continue;
+      grid[row][column] = EMPTY_CELL;
+      changedCount = changedCount + 1;
+    }
+  }
+
+  // No change: do not call the subscribers
+  if (changedCount === 0) return 0;
+
+  for (const listener of subscribers) listener(grid);
+  return changedCount;
+}
+
 export { createCheckerboard } from './UI/checkerboardUI.js';
 export { createCanvas } from './UI/canvasUI.js';
 export { screenToCell } from './screenToCell.js';
