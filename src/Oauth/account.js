@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the account (login) interface. They do not touch the DOM,
  * so they can be unit tested in Node.
- * @module account
+ * @module Oauth/account
  */
 
 // A DID is long and hard to read, so the header shows only its start.

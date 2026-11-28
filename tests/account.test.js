@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanHandle, isHandleUsable, accountLabel } from '../src/account.js';
+import { cleanHandle, isHandleUsable, accountLabel } from '../src/Oauth/account.js';
 
 test('cleanHandle: removes spaces at the start and end', () => {
   assert.equal(cleanHandle('  alice.bsky.social  '), 'alice.bsky.social');

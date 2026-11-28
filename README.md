@@ -48,23 +48,19 @@ Use **Delete** under a draft thumbnail to remove that saved snapshot from this b
 
 ## Login
 
-The **Log in** button is at the top right of the page. It uses the AT Protocol OAuth module `auth.js` (in the repository root) to log in with a Bluesky account.
+The **Log in** button is at the top right of the page. It uses the AT Protocol OAuth module in `src/Oauth/` to log in with a Bluesky account.
 
 - Click **Log in**, type your handle (for example `you.bsky.social`; a leading `@` is removed), and click **Continue** or press **Enter**. The form closes with a second click on **Log in**, **Esc**, or a click outside it.
 - The browser goes to your sign-in page. After you approve, it comes back to Pixelboard.
-- When you are logged in, the header shows a short form of your DID (your permanent AT Protocol id) and a **Log out** button. `auth.js` does not give the handle at this time.
+- When you are logged in, the header shows your handle (for example `@you.bsky.social`) and a **Log out** button. If your PDS does not give a valid handle, the header shows a short form of your DID (your permanent AT Protocol id).
 - The session stays after a page reload. If the server ends the session, the header shows **Log in** again.
 - Drawing, drafts, and colors work the same when you are logged in or logged out.
 
 ### Local development
 
-- Open the page at `http://127.0.0.1:5173`. The OAuth loopback flow does not accept `localhost`, so `auth.js` sends `localhost` to `127.0.0.1`.
-- `auth.js` loads the OAuth client from `https://esm.sh`, so login needs a network connection.
-- A deployed site also needs a `client-metadata.json` file next to `auth.js`. This file is not in the repository yet.
-
-### Stand-in login
-
-`src/authStub.js` is a fake login with the same functions (`initAuth`, `signIn`, `signOut`). It uses no network and keeps the session in memory only. The test handle `fail.test` always fails. To use it, change the path in `loadAuthModule` in `src/pixelEditor.js` from `../auth.js` to `./authStub.js`.
+- Open the page at `http://127.0.0.1:5173`. The OAuth loopback flow does not accept `localhost`, so `src/Oauth/oauthClient.js` sends `localhost` to `127.0.0.1`.
+- `src/Oauth/oauthClient.js` loads the OAuth client from `https://esm.sh`, so login needs a network connection.
+- A deployed site also needs a `client-metadata.json` file next to `src/Oauth/clientId.js`. This file is not in the repository yet.
 
 ## Source
 
@@ -72,7 +68,7 @@ The **Log in** button is at the top right of the page. It uses the AT Protocol O
 - Drawing: `src/pixels.js` (stroke interpolation so fast drags have no gaps, and cell color lookup), `src/brush.js` (brush footprint math), `src/brushPanel.js` and `src/brushOutline.js` (brush panel and hover outline).
 - Colors: everything is in `src/color/`. `main.js` is the main script of the folder and the only file the rest of the app imports. The other files support it: `color.js` (HSV, RGB, and hex conversion, and alpha blending), `pickerGeometry.js`, `pickerDrawing.js`, `colorPicker.js`, `colorChannels.js`, and `numberInput.js` (the color picker), `colorSections.js` (remembers open sections), `recentColors.js`, and `recentColorsRow.js`.
 - Drafts: `src/drafts.js` is the drafts API (`saveDraft`, `listDrafts`, `loadDraft`, `deleteDraft`). Today it uses local storage; a later version can use the PDS without changes to the UI. `src/draftsColumn.js`, `src/dialogs.js`, `src/draftDisplay.js`, and `src/unsaved.js` build the drafts column.
-- Login: `src/accountMenu.js` builds the account area in the header. `src/account.js` cleans and checks the handle and makes the name label. `auth.js` (repository root) is the OAuth login module. `src/authStub.js` is a stand-in login for work without a network.
+- Login: everything is in `src/Oauth/`. `main.js` is the main script of the folder and the only file the rest of the app imports. `oauthClient.js` is the real OAuth session. `clientId.js` makes the OAuth client id. `account.js` cleans and checks the handle and makes the name label. `UI/accountMenuUI.js` builds the account area in the header.
 - `src/style.css` provides the responsive layout.
 
 Files with only pure logic (no DOM) have unit tests in `tests/`. Vite provides development serving and production builds; the application has no runtime dependencies.

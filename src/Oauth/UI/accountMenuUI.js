@@ -2,10 +2,10 @@
  * The account area at the right end of the header: the Log in button with its
  * handle popover, or the user name with a Log out button.
  * It uses only the auth contract (initAuth, signIn, signOut, event auth-ended),
- * so the stand-in and the real `auth.js` both fit without changes here.
- * @module accountMenu
+ * so it does not depend on how `oauthClient.js` does the login.
+ * @module Oauth/UI/accountMenuUI
  */
-import { cleanHandle, isHandleUsable, accountLabel } from './account.js';
+import { cleanHandle, isHandleUsable, accountLabel } from '../account.js';
 
 const EMPTY_HANDLE_MESSAGE = 'Type your handle, for example you.bsky.social.';
 const BUSY_MESSAGE = 'Opening your sign-in page…';
@@ -13,13 +13,13 @@ const SESSION_ENDED_MESSAGE = 'Your session ended. Log in again to continue.';
 
 /**
  * Connects the header account elements to the auth functions.
- * The auth functions are parameters, so tests and the stand-in can give their own.
+ * The auth functions are parameters, so tests can give their own.
  * @param {Object} options
  * @param {() => Promise<{did: string, handle?: string}|null>} options.initAuth - Resolves to the logged-in user, or null
  * @param {(handle: string) => Promise<void>} options.signIn - Starts login (the real module leaves the page)
  * @param {() => Promise<void>} options.signOut - Ends the session
  * @param {(message: string) => void} options.showStatus - Shows a message in the page status line
- * @param {EventTarget} [options.eventTarget] - Fires `auth-ended` and the stand-in's `auth-changed` (the browser `window` by default)
+ * @param {EventTarget} [options.eventTarget] - Fires `auth-ended` (the browser `window` by default)
  */
 export function createAccountMenu({ initAuth, signIn, signOut, showStatus, eventTarget = window }) {
   const loginButton = document.getElementById('login-button');
@@ -131,7 +131,6 @@ export function createAccountMenu({ initAuth, signIn, signOut, showStatus, event
     closeFromOutside();
   });
 
-  eventTarget.addEventListener('auth-changed', (event) => showLoggedIn(event.detail));
   eventTarget.addEventListener('auth-ended', () => {
     showLoggedOut();
     showStatus(SESSION_ENDED_MESSAGE);
