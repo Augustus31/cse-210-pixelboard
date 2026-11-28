@@ -8,8 +8,6 @@ import { loadSectionState, saveSectionState } from './colorSections.js';
 import { createRecentColorsRow } from './recentColorsRow.js';
 import { createDraftsColumn } from './draftsColumn.js';
 import { createAccountMenu } from './accountMenu.js';
-// Stand-in login. Change only this line to './auth.js' when the real module is merged.
-import { initAuth, signIn, signOut } from './authStub.js';
 import {
   canvas,
   canvasWrap,
@@ -421,6 +419,29 @@ createDraftsColumn({
   applyDraft,
   showStatus: (message) => { $('save-status').textContent = message; },
 });
+// Real AT Protocol OAuth login. The module is in the repository root.
+// It loads its OAuth client from a URL, which only a browser can do.
+// The dynamic import keeps this file loadable in Node for the unit tests.
+// For work without a network, change the path to './authStub.js' (a fake login).
+function loadAuthModule() {
+  return import('../auth.js');
+}
+
+async function initAuth() {
+  const auth = await loadAuthModule();
+  return auth.initAuth();
+}
+
+async function signIn(handle) {
+  const auth = await loadAuthModule();
+  return auth.signIn(handle);
+}
+
+async function signOut() {
+  const auth = await loadAuthModule();
+  return auth.signOut();
+}
+
 createAccountMenu({
   initAuth,
   signIn,

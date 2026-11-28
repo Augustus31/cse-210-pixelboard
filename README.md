@@ -1,6 +1,6 @@
 # Pixelboard
 
-A small pixel drawing playground built with JavaScript, HTML, and CSS. Choose a **64 × 64**, **40 × 40**, or **25 × 25** pixel canvas, pick a color, and start drawing. You can save drafts and open them again later. No account or backend is required: the **Log in** button is a preview of the Bluesky login and does not connect to a server yet.
+A small pixel drawing playground built with JavaScript, HTML, and CSS. Choose a **64 × 64**, **40 × 40**, or **25 × 25** pixel canvas, pick a color, and start drawing. You can save drafts and open them again later. No account or backend is required to draw. The **Log in** button logs you in with a Bluesky account.
 
 ## Get started
 
@@ -46,24 +46,25 @@ All three drawings and the selected size automatically save in this browser's lo
 
 Use **Delete** under a draft thumbnail to remove that saved snapshot from this browser. Deleting a draft leaves the current drawing and other drafts intact.
 
-## Login (preview)
+## Login
 
-The **Log in** button is at the top right of the page. The real Bluesky login is not connected yet: today a stand-in module (`src/authStub.js`) gives a fake session, so the interface can be tried without a network or an account.
+The **Log in** button is at the top right of the page. It uses the AT Protocol OAuth module `auth.js` (in the repository root) to log in with a Bluesky account.
 
 - Click **Log in**, type your handle (for example `you.bsky.social`; a leading `@` is removed), and click **Continue** or press **Enter**. The form closes with a second click on **Log in**, **Esc**, or a click outside it.
-- When you are logged in, the header shows `@handle` and a **Log out** button.
-- The fake session is kept in memory only, so a page reload logs you out. The test handle `fail.test` always fails, to show the error message.
+- The browser goes to your sign-in page. After you approve, it comes back to Pixelboard.
+- When you are logged in, the header shows a short form of your DID (your permanent AT Protocol id) and a **Log out** button. `auth.js` does not give the handle at this time.
+- The session stays after a page reload. If the server ends the session, the header shows **Log in** again.
 - Drawing, drafts, and colors work the same when you are logged in or logged out.
 
-### Connecting the real login
+### Local development
 
-The interface uses only `initAuth()`, `signIn(handle)`, `signOut()`, and the window event `auth-ended`, the same exports as the OAuth module `auth.js`. When that module is merged:
+- Open the page at `http://127.0.0.1:5173`. The OAuth loopback flow does not accept `localhost`, so `auth.js` sends `localhost` to `127.0.0.1`.
+- `auth.js` loads the OAuth client from `https://esm.sh`, so login needs a network connection.
+- A deployed site also needs a `client-metadata.json` file next to `auth.js`. This file is not in the repository yet.
 
-1. Put it at `src/auth.js`.
-2. In `src/pixelEditor.js`, change the import from `./authStub.js` to `./auth.js`. No other UI change is needed.
-3. Delete `src/authStub.js`, or keep it for tests only, and add `client-metadata.json`.
+### Stand-in login
 
-If `initAuth()` also returns the user's `handle`, the header shows `@handle`; otherwise it shows a short form of the DID (the user's permanent AT Protocol id).
+`src/authStub.js` is a fake login with the same functions (`initAuth`, `signIn`, `signOut`). It uses no network and keeps the session in memory only. The test handle `fail.test` always fails. To use it, change the path in `loadAuthModule` in `src/pixelEditor.js` from `../auth.js` to `./authStub.js`.
 
 ## Source
 
@@ -71,7 +72,7 @@ If `initAuth()` also returns the user's `handle`, the header shows `@handle`; ot
 - Drawing: `src/pixels.js` (stroke interpolation so fast drags have no gaps, and cell color lookup), `src/brush.js` (brush footprint math), `src/brushPanel.js` and `src/brushOutline.js` (brush panel and hover outline).
 - Colors: everything is in `src/color/`. `main.js` is the main script of the folder and the only file the rest of the app imports. The other files support it: `color.js` (HSV, RGB, and hex conversion, and alpha blending), `pickerGeometry.js`, `pickerDrawing.js`, `colorPicker.js`, `colorChannels.js`, and `numberInput.js` (the color picker), `colorSections.js` (remembers open sections), `recentColors.js`, and `recentColorsRow.js`.
 - Drafts: `src/drafts.js` is the drafts API (`saveDraft`, `listDrafts`, `loadDraft`, `deleteDraft`). Today it uses local storage; a later version can use the PDS without changes to the UI. `src/draftsColumn.js`, `src/dialogs.js`, `src/draftDisplay.js`, and `src/unsaved.js` build the drafts column.
-- Login: `src/accountMenu.js` builds the account area in the header. `src/account.js` cleans and checks the handle and makes the name label. `src/authStub.js` is the stand-in login module (the dummy one need to be relaced by `auth.js` after branch merge).
+- Login: `src/accountMenu.js` builds the account area in the header. `src/account.js` cleans and checks the handle and makes the name label. `auth.js` (repository root) is the OAuth login module. `src/authStub.js` is a stand-in login for work without a network.
 - `src/style.css` provides the responsive layout.
 
 Files with only pure logic (no DOM) have unit tests in `tests/`. Vite provides development serving and production builds; the application has no runtime dependencies.
