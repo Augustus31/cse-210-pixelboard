@@ -149,6 +149,20 @@ describe('callbacks', () => {
     pointerInput.destroy();
   });
 
+  test('onLeave is called when the pointer leaves the element', () => {
+    let leaveCount = 0;
+    const { target, pointerInput } = setUp({
+      onLeave: () => {
+        leaveCount = leaveCount + 1;
+      },
+    });
+    target.dispatchEvent(new Event('pointerleave'));
+    assert.equal(leaveCount, 1);
+    pointerInput.destroy();
+    target.dispatchEvent(new Event('pointerleave'));
+    assert.equal(leaveCount, 1);
+  });
+
   test('onStrokeStart is called before the first paint', () => {
     let colorAtStart = null;
     const { target, pointerInput } = setUp({
