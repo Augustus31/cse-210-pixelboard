@@ -95,6 +95,30 @@ export function setCell(row, column, cellColor) {
 }
 
 /**
+ * Changes the color of many cells, and calls the subscribers one time only.
+ * Use this for a stroke or a fill, so the canvas draws one time and not one time for each cell.
+ * A cell that is not in the grid is ignored.
+ * @param {{row: number, column: number}[]} cells - The cells to change
+ * @param {string} cellColor - The new color, '#rrggbbaa' in lower case
+ * @returns {number} The number of cells that changed color
+ */
+export function setCells(cells, cellColor) {
+  let changedCount = 0;
+  for (const cell of cells) {
+    if (isInGrid(cell.row, cell.column) == false) continue;
+    if (grid[cell.row][cell.column] === cellColor) continue;
+    grid[cell.row][cell.column] = cellColor;
+    changedCount = changedCount + 1;
+  }
+
+  // No change: do not call the subscribers
+  if (changedCount === 0) return 0;
+
+  for (const listener of subscribers) listener(grid);
+  return changedCount;
+}
+
+/**
  * Changes the grid size. All cells become empty.
  * A size that is not a whole number above 0 is ignored, and the grid stays the same.
  * @param {number} width - The new number of columns
@@ -118,3 +142,6 @@ export function setGridSize(width, height) {
 
 export { createCheckerboard } from './UI/checkerboardUI.js';
 export { createCanvas } from './UI/canvasUI.js';
+export { screenToCell } from './screenToCell.js';
+export { stampCells, lineCells, strokeCells, STROKE_SHAPES } from './stroke.js';
+export { floodCells } from './floodFill.js';
